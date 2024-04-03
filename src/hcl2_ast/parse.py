@@ -1,9 +1,12 @@
 import typing as t
+from pathlib import Path
 
-from hcl2.lark_parser import Lark_StandAlone  # type: ignore
+from lark import Lark
 
-from hcl2_ast.ast import Module
+from hcl2_ast._ast import Module
 from hcl2_ast.transformer import ToAstTransformer
+
+PARSER_FILE = Path(__file__).absolute().resolve().parent / ".lark_cache.bin"
 
 
 def parse_file(file: t.TextIO) -> Module:
@@ -11,4 +14,12 @@ def parse_file(file: t.TextIO) -> Module:
 
 
 def parse_string(text: str) -> Module:
-    return Module(Lark_StandAlone(transformer=ToAstTransformer()).parse(text + "\n"))
+    parse_tree = Lark.open(
+        "hcl2.lark",
+        parser="lalr",
+        cache=str(PARSER_FILE),  # Disable/Delete file to effect changes to the grammar
+        rel_to=__file__,
+        propagate_positions=True,
+    ).parse(text + "\n")
+
+    return Module(ToAstTransformer().transform(parse_tree))

@@ -1,4 +1,4 @@
-from hcl2_ast.ast import Attribute, BinaryOp, Block, FunctionCall, GetAttr, Identifier, Literal, Module, UnaryOp
+from hcl2_ast._ast import Attribute, BinaryOp, Block, FunctionCall, GetAttr, Identifier, Literal, Module, UnaryOp
 from hcl2_ast.parse import parse_string
 
 
@@ -45,31 +45,30 @@ def test_can_parse_binary_operator() -> None:
             Attribute(
                 "value",
                 BinaryOp(
-                    "+",
-                    Literal(value=1),
+                    "-",
                     BinaryOp(
-                        "-",
+                        "+",
+                        Literal(value=1),
                         BinaryOp(
                             "*",
                             Identifier(name="addend"),
                             Literal(value=2),
                         ),
-                        Literal(value=1),
                     ),
+                    Literal(value=1),
                 ),
             )
         ]
     )
 
-    # TODO (@NiklasRosenstein): Missing operator precedence.
     assert parse_string("value = 1 + addend * 2 - 1 ") == Module(
         [
             Attribute(
                 "value",
                 BinaryOp(
-                    "+",
-                    Literal(value=1),
-                    BinaryOp("*", Identifier(name="addend"), BinaryOp("-", Literal(value=2), Literal(value=1))),
+                    "-",
+                    BinaryOp("+", Literal(value=1), BinaryOp("*", Identifier(name="addend"), Literal(value=2))),
+                    Literal(value=1)
                 ),
             )
         ]
