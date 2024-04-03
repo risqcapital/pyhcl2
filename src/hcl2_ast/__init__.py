@@ -1,6 +1,6 @@
 __version__ = "0.4.0"
 
-from .ast import (
+from ._ast import (
     Array,
     Attribute,
     BinaryOp,

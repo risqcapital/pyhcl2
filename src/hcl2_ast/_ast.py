@@ -22,11 +22,11 @@ def pformat(value: t.Union[LiteralValue, "Node"], colored: bool = False) -> str:
         return t.cast(str, _(repr(value), "cyan"))
 
 
-def pformat_list(values: t.List["Expression"]) -> str:
+def pformat_list(values: t.List["Expression"], colored: bool = False) -> str:
     result = ""
     if values:
         for value in values:
-            result += "\n" + textwrap.indent(pformat(value), "  ") + ","
+            result += "\n" + textwrap.indent(pformat(value, colored), "  ") + ","
         result += "\n"
     return result
 
@@ -46,9 +46,9 @@ class Node:
         if isinstance(value, Expression):
             formatted = value.pformat(colored)
         elif isinstance(value, list):
-            formatted = f"[{pformat_list(value)}]"
+            formatted = f"[{pformat_list(value, colored)}]"
         else:
-            formatted = pformat(value)
+            formatted = pformat(value, colored)
         return formatted
 
     def pformat(self, colored: bool = True) -> str:
@@ -75,6 +75,10 @@ class Literal(Expression):
 
     def __post_init__(self) -> None:
         assert isinstance(self.value, (type(None), bool, int, float, str)), self.value
+
+    # def pformat(self, colored: bool = True) -> str:
+    #     _ = termcolor.colored if colored else _no_color
+    #     return _(repr(self.value), "cyan")
 
 
 @dataclasses.dataclass
@@ -109,6 +113,10 @@ class FunctionCall(Expression):
 @dataclasses.dataclass
 class Identifier(Expression):
     name: str
+
+    # def pformat(self, colored: bool = True) -> str:
+    #     _ = termcolor.colored if colored else _no_color
+    #     return _(self.name, "yellow")
 
 
 @dataclasses.dataclass
@@ -145,6 +153,21 @@ class BinaryOp(Expression):
     left: Expression
     right: Expression
 
+    # def pformat(self, colored: bool = True) -> str:
+    #     _ = termcolor.colored if colored else _no_color
+    #     return f"({self.left.pformat(colored)} {self.op} {self.right.pformat(colored)})"
+
+
+@dataclasses.dataclass
+class Conditional(Expression):
+    cond: Expression
+    then_expr: Expression
+    else_expr: Expression
+
+    # def pformat(self, colored: bool = True) -> str:
+    #     _ = termcolor.colored if colored else _no_color
+    #     return f"({self.cond.pformat(colored)} ? {self.then_expr.pformat(colored)} : {self.else_expr.pformat(colored)})"
+
 
 class Stmt(Node):
     """Base class for nodes that represent statements in HCL2."""
@@ -154,6 +177,10 @@ class Stmt(Node):
 class Attribute(Stmt):
     key: str
     value: Expression
+
+    # def pformat(self, colored: bool = True) -> str:
+    #     _ = termcolor.colored if colored else _no_color
+    #     return f"{_(self.key, 'yellow')} = {self.value.pformat(colored)}"
 
 
 @dataclasses.dataclass

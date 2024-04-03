@@ -6,7 +6,7 @@ import typing as t
 from hcl2.transformer import DictTransformer  # type: ignore[import]
 from lark import Token
 
-from hcl2_ast.ast import (
+from hcl2_ast._ast import (
     Array,
     Attribute,
     AttrSplat,
@@ -20,6 +20,7 @@ from hcl2_ast.ast import (
     IndexSplat,
     Literal,
     Object,
+    Conditional,
     UnaryOp,
 )
 
@@ -39,15 +40,39 @@ class ToAstTransformer(DictTransformer):  # type: ignore[misc]
 
     # DictTransformer
 
-    def unary_op(self, args: t.List[t.Any]) -> UnaryOp:
-        return UnaryOp(str(args[0]), args[1])  # type: ignore[arg-type]
+    def add_op(self, args):
+        return str(args[0])
 
-    def binary_term(self, args: t.List[t.Any]) -> t.List[t.Any]:
-        return args
+    def mul_op(self, args):
+        return str(args[0])
 
-    def binary_op(self, args: t.List[t.Any]) -> BinaryOp:
-        assert len(args) == 2
-        return BinaryOp(str(args[1][0]), args[0], args[1][1])  # type: ignore[arg-type]
+    def comp_op(self, args):
+        return str(args[0])
+
+    def term(self, args):
+        return BinaryOp(args[1], args[0], args[2])
+
+    def add_expr(self, args):
+        return BinaryOp(args[1], args[0], args[2])
+
+    def compare(self, args):
+        return BinaryOp(args[1], args[0], args[2])
+
+    def not_test(self, args):
+        return UnaryOp("!", args[0])
+
+    def and_test(self, args):
+        return BinaryOp("&&", args[0], args[1])
+
+    def or_test(self, args):
+        return BinaryOp("||", args[0], args[1])
+
+    def neg(self, args):
+        return UnaryOp("-", args[0])
+
+    def conditional(self, args):
+        return Conditional(args[0], args[1], args[2])
+
 
     def get_attr(self, args: t.List[t.Any]) -> Expression:
         return self.to_expression(args[0])
@@ -152,3 +177,5 @@ class ToAstTransformer(DictTransformer):  # type: ignore[misc]
             else:
                 assert False, type(other)
         return node
+    def __default__(self, data, children, meta):
+        raise RuntimeError(f"unhandled syntactical element: {data!r}")
