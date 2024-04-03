@@ -1,4 +1,5 @@
-from hcl2_ast._ast import Attribute, BinaryOp, Block, FunctionCall, GetAttr, Identifier, Literal, Module, UnaryOp
+from hcl2_ast._ast import Attribute, BinaryOp, Block, FunctionCall, GetAttr, Identifier, Literal, Module, UnaryOp, \
+    GetAttrKey, Parenthesis
 from hcl2_ast.parse import parse_string
 
 
@@ -32,11 +33,11 @@ def test_can_parse_block_with_args_as_identifiers() -> None:
 
 def test_can_parse_read_from_attributes() -> None:
     assert parse_string("value = foo") == Module([Attribute("value", Identifier("foo"))])
-    assert parse_string("value = foo.bar") == Module([Attribute("value", GetAttr(Identifier("foo"), "bar"))])
+    assert parse_string("value = foo.bar") == Module([Attribute("value", GetAttr(Identifier("foo"), GetAttrKey(Identifier("bar"))))])
     assert parse_string("value = foo.bar.baz") == Module(
-        [Attribute("value", GetAttr(GetAttr(Identifier("foo"), "bar"), "baz"))]
+        [Attribute("value", GetAttr(GetAttr(Identifier("foo"), GetAttrKey(Identifier("bar"))), GetAttrKey(Identifier("baz"))))]
     )
-    assert parse_string('value = "42".bar') == Module([Attribute("value", GetAttr(Literal("42"), "bar"))])
+    assert parse_string('value = "42".bar') == Module([Attribute("value", GetAttr(Literal("42"), GetAttrKey(Identifier("bar"))))])
 
 
 def test_can_parse_binary_operator() -> None:
@@ -49,10 +50,12 @@ def test_can_parse_binary_operator() -> None:
                     BinaryOp(
                         "+",
                         Literal(value=1),
-                        BinaryOp(
-                            "*",
-                            Identifier(name="addend"),
-                            Literal(value=2),
+                        Parenthesis(
+                            BinaryOp(
+                                "*",
+                                Identifier(name="addend"),
+                                Literal(value=2),
+                            )
                         ),
                     ),
                     Literal(value=1),
@@ -80,4 +83,4 @@ def test_can_parse_unary_operator() -> None:
 
 
 def test_can_parse_function_call() -> None:
-    assert parse_string("value = foo()") == Module([Attribute("value", FunctionCall("foo", []))])
+    assert parse_string("value = foo()") == Module([Attribute("value", FunctionCall(Identifier("foo"), []))])
