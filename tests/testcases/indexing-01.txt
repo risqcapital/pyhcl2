@@ -2,5 +2,22 @@
 value = another-value[1] + a.*.b[*].c
 ===
 Module(body=[
-  Attribute(key='value', value=BinaryOp(op='+', left=GetIndex(on=Identifier(name='another-value'), index=Literal(value=1)), right=GetAttr(on=IndexSplat(on=GetAttr(on=AttrSplat(on=Identifier(name='a')), name='b')), name='c'))),
+  Attribute(
+    key='value',
+    value=BinaryOp(
+      op='+',
+      left=GetIndex(on=Identifier(name='another-value'), key=GetIndexKey(expr=Literal(value=1))),
+      right=IndexSplat(
+        on=AttrSplat(
+          on=Identifier(name='a'),
+          keys=[
+            GetAttrKey(ident=Identifier(name='b')),
+          ]
+        ),
+        keys=[
+          GetAttrKey(ident=Identifier(name='c')),
+        ]
+      )
+    )
+  ),
 ])

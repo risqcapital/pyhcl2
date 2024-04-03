@@ -11,15 +11,15 @@ block3 "arg2" arg3 {
 ===
 Module(body=[
   Block(
-    name='block1',
-    args=[],
+    type='block1',
+    labels=[],
     body=[
       Attribute(key='value', value=Literal(value='foo')),
     ]
   ),
   Block(
-    name='block2',
-    args=[
+    type='block2',
+    labels=[
       Identifier(name='arg1'),
     ],
     body=[
@@ -27,13 +27,13 @@ Module(body=[
     ]
   ),
   Block(
-    name='block3',
-    args=[
+    type='block3',
+    labels=[
       Literal(value='arg2'),
       Identifier(name='arg3'),
     ],
     body=[
-      Attribute(key='value', value=FunctionCall(name='bar', args=[])),
+      Attribute(key='value', value=FunctionCall(ident=Identifier(name='bar'), args=[], var_args=False)),
     ]
   ),
 ])

@@ -1,4 +1,6 @@
 import dataclasses
+
+from dataclasses import dataclass
 import textwrap
 import typing as t
 
@@ -69,7 +71,7 @@ class Expression(Node):
     """Base class for nodes that represent expressions in HCL2."""
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Literal(Expression):
     value: LiteralValue
 
@@ -81,14 +83,14 @@ class Literal(Expression):
     #     return _(repr(self.value), "cyan")
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Array(Expression):
     values: t.List[Expression]
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Object(Expression):
-    fields: t.Dict[str, Expression]
+    fields: t.Dict[Expression, Expression]
 
     def pformat_field(self, field_name: str, colored: bool) -> str:
         if field_name == "fields":
@@ -101,16 +103,7 @@ class Object(Expression):
         return super().pformat_field(field_name, colored)
 
 
-@dataclasses.dataclass
-class FunctionCall(Expression):
-    name: str
-    args: t.List[Expression]
-
-    def __post_init__(self) -> None:
-        assert all(isinstance(arg, Expression) for arg in self.args), self.args
-
-
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Identifier(Expression):
     name: str
 
@@ -119,35 +112,57 @@ class Identifier(Expression):
     #     return _(self.name, "yellow")
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
+class FunctionCall(Expression):
+    ident: Identifier
+    args: t.List[Expression]
+    var_args: bool = False
+
+    def __post_init__(self) -> None:
+        assert all(isinstance(arg, Expression) for arg in self.args), self.args
+
+
+@dataclass(frozen=True, eq=True)
+class GetAttrKey(Node):
+    ident: Identifier
+
+
+@dataclass(frozen=True, eq=True)
+class GetIndexKey(Node):
+    expr: Expression
+
+
+@dataclass(frozen=True, eq=True)
 class GetAttr(Expression):
     on: Expression
-    name: str
+    key: GetAttrKey
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class GetIndex(Expression):
     on: Expression
-    index: Literal
+    key: GetIndexKey
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class AttrSplat(Expression):
     on: Expression
+    keys: list[GetAttrKey] = dataclasses.field(default_factory=list)
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class IndexSplat(Expression):
     on: Expression
+    keys: list[GetAttrKey | GetIndexKey] = dataclasses.field(default_factory=list)
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class UnaryOp(Expression):
     op: te.Literal["-", "!"]
     expr: Expression
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class BinaryOp(Expression):
     op: te.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
     left: Expression
@@ -158,7 +173,7 @@ class BinaryOp(Expression):
     #     return f"({self.left.pformat(colored)} {self.op} {self.right.pformat(colored)})"
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Conditional(Expression):
     cond: Expression
     then_expr: Expression
@@ -169,11 +184,40 @@ class Conditional(Expression):
     #     return f"({self.cond.pformat(colored)} ? {self.then_expr.pformat(colored)} : {self.else_expr.pformat(colored)})"
 
 
+@dataclass(frozen=True, eq=True)
+class Parenthesis(Expression):
+    expr: Expression
+
+    # def pformat(self, colored: bool = True) -> str:
+    #     _ = termcolor.colored if colored else _no_color
+    #     return f"({self.expr.pformat(colored)})"
+
+
+@dataclass(frozen=True, eq=True)
+class ForTupleExpression(Expression):
+    key_ident: Identifier
+    value_ident: Identifier | None
+    collection: Expression
+    value: Expression
+    condition: Expression | None
+
+
+@dataclass(frozen=True, eq=True)
+class ForObjectExpression(Expression):
+    key_ident: Identifier
+    value_ident: Identifier | None
+    collection: Expression
+    key: Expression
+    value: Expression
+    condition: Expression | None
+    grouping_mode: bool = dataclasses.field(default=False)
+
+
 class Stmt(Node):
     """Base class for nodes that represent statements in HCL2."""
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Attribute(Stmt):
     key: str
     value: Expression
@@ -183,13 +227,13 @@ class Attribute(Stmt):
     #     return f"{_(self.key, 'yellow')} = {self.value.pformat(colored)}"
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Block(Stmt):
-    name: str
-    args: t.List[Expression]
+    type: str
+    labels: list[Literal | Identifier]
     body: t.List[Stmt]
 
 
-@dataclasses.dataclass
+@dataclass(frozen=True, eq=True)
 class Module(Node):
     body: t.List[Stmt]

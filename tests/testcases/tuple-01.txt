@@ -7,7 +7,7 @@ Module(body=[
     value=Array(values=[
       Literal(value='42'),
       Literal(value=2),
-      FunctionCall(name='foo', args=[]),
+      FunctionCall(ident=Identifier(name='foo'), args=[], var_args=False),
       Array(values=[
         Literal(value=None),
       ]),
