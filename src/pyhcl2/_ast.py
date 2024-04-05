@@ -57,6 +57,7 @@ class Node:
     def pformat(self, colored: bool = True) -> str:
         _ = termcolor.colored if colored else _no_color
         args = []
+        # noinspection PyDataclass
         fields = dataclasses.fields(self)
         for field in fields:
             args.append(_(field.name, "cyan") + "=" + self.pformat_field(field.name, colored))
