@@ -2,8 +2,8 @@ __version__ = "0.4.0"
 
 from ._ast import (
     Array,
-    AttrSplat,
     Attribute,
+    AttrSplat,
     BinaryOp,
     Block,
     Conditional,
@@ -23,7 +23,7 @@ from ._ast import (
     Object,
     Parenthesis,
     Stmt,
-    UnaryOp
+    UnaryOp,
 )
 from .parse import parse_file, parse_string
 

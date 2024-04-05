@@ -1,2 +1,2 @@
 def test_import():
-    exec("from hcl2_ast import *")
+    exec("from pyhcl2 import *")

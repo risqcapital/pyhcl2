@@ -3,68 +3,41 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "hcl2-ast"
-version = "0.4.0"
+name = "pyhcl2"
+version = "1.0.0"
 description = ""
-authors = ["Niklas Rosenstein <rosensteinniklas@gmail.com>"]
+authors = ["RISQ Capital <dev@risqcapital.com>"]
 license = "MIT"
-readme = "readme.md"
-packages = [{ include = "hcl2_ast", from = "src" }]
+readme = "README.md"
+packages = [{ include = "pyhcl2", from = "src" }]
 classifiers = []
 keywords = []
 
 [tool.poetry.urls]
-"Bug Tracker" = "https://github.com/NiklasRosenstein/python-hcl2-ast/issues"
+"Bug Tracker" = "https://github.com/risqcapital/pyhcl2/issues"
 # Documentation = ""
 # Homepage = ""
-Repository = "https://github.com/NiklasRosenstein/python-hcl2-ast"
+Repository = "https://github.com/risqcapital/pyhcl2"
 
 [tool.poetry.dependencies]
-python = "^3.6"
-termcolor = "^1.1.0"
-typing-extensions = ">=3.10.0"
+python = ">= 3.8, < 4"
+termcolor = "^2.4.0"
 
 [tool.poetry.dev-dependencies]
-black = "*"
-flake8 = "*"
-isort = "*"
-mypy = "*"
-pytest = "*"
+ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
 
-[tool.slap]
-typed = true
-
-[tool.slap.test]
-check = "slap check"
-mypy = "dmypy run src/"
-pytest = "pytest tests/ -vv"
-black = "black --check src/ tests/"
-isort = "isort --check-only src/ tests/"
-flake8 = "flake8 src/ tests/"
-
-[tool.slap.run]
-fmt = "black src/ tests/ && isort src/ tests/"
-
-[tool.mypy]
-python_version = "3.6"
-explicit_package_bases = true
-mypy_path = ["src"]
-namespace_packages = true
-pretty = true
-show_error_codes = true
-show_error_context = true
-strict = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_unreachable = true
-warn_unused_ignores = true
-
-[tool.isort]
-profile = "black"
-line_length = 120
-combine_as_imports = true
-
-[tool.black]
-line-length = 120
+[tool.ruff.lint]
+extend-select = [
+    "W",  # pyflakes warnings
+    "I", # isort
+    "N", # pep8 naming
+    "UP", # pyupgrade
+    "ANN", # flake8 annotations
+    "ERA", # eradicate
+    "PL", # pylint
+    "TRY", # tryceratops
+    "RUF", # ruf,
+    "FA102" # future-required-type-annotation
+]

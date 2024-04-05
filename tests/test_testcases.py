@@ -1,8 +1,7 @@
 from pathlib import Path
 
 import pytest
-
-from hcl2_ast.parse import parse_string
+from pyhcl2.parse import parse_string
 
 testcases_dir = Path(__file__).parent / "testcases"
 

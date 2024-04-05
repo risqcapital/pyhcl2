@@ -1,6 +1,17 @@
-from hcl2_ast._ast import Attribute, BinaryOp, Block, FunctionCall, GetAttr, Identifier, Literal, Module, UnaryOp, \
-    GetAttrKey, Parenthesis
-from hcl2_ast.parse import parse_string
+from pyhcl2._ast import (
+    Attribute,
+    BinaryOp,
+    Block,
+    FunctionCall,
+    GetAttr,
+    GetAttrKey,
+    Identifier,
+    Literal,
+    Module,
+    Parenthesis,
+    UnaryOp,
+)
+from pyhcl2.parse import parse_string
 
 
 def test_can_parse_attribute_string() -> None:
