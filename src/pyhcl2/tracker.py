@@ -19,15 +19,15 @@ class VisitedVariablesTracker(Sequence, Mapping):
     def __repr__(self) -> str:
         return f"VisitedVariablesTracker({self.key})"
 
-    def get_visited_variables(self, keys: tuple[str, ...] = tuple()) -> list[tuple[str, ...]]:
-        dirty_children = []
+    def get_visited_variables(self, keys: tuple[str, ...] = tuple()) -> set[tuple[str, ...]]:
+        dirty_children = set()
         key_tuple = (*keys, self.key) if self.key else keys
 
         if self.key:
-            dirty_children.append(key_tuple)
+            dirty_children.add(key_tuple)
 
         for child in self.children:
-            dirty_children.extend(child.get_visited_variables(key_tuple))
+            dirty_children.update(child.get_visited_variables(key_tuple))
 
         return dirty_children
 
