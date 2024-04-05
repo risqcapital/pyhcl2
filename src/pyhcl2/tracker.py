@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Sequence, dict_items
-from typing import Iterator, Mapping, NoReturn, Self
+from collections.abc import Sequence
+from typing import Iterator, Mapping, NoReturn, Self, ItemsView
 
 from pyhcl2 import Block
 from pyhcl2.eval import EvaluationScope, Evaluator
@@ -53,7 +53,7 @@ class VisitedVariablesTracker(Sequence, Mapping):
         # Pretend to have a non-zero so bool(self) returns True
         return 1
 
-    def items(self) -> dict_items[Self, Self]:
+    def items(self) -> ItemsView[Self, Self]:
         # Pretend to be a mapping of self to self
         return {self: self}.items()
 

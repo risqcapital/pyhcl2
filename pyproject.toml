@@ -15,16 +15,15 @@ keywords = []
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/risqcapital/pyhcl2/issues"
-# Documentation = ""
-# Homepage = ""
 Repository = "https://github.com/risqcapital/pyhcl2"
 
 [tool.poetry.dependencies]
-python = ">= 3.8, < 4"
+python = ">= 3.10, < 4"
 termcolor = "^2.4.0"
 lark = "^1.1.9"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
 ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
