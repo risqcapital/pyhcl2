@@ -1,7 +1,0 @@
-release-date = "2022-05-19"
-
-[[entries]]
-id = "a60abcc0-05c5-4e8d-8dec-1387ff02230d"
-type = "feature"
-description = "support AttrSplat and IndexSplat nodes and add parsing unit tests"
-author = "@NiklasRosenstein"

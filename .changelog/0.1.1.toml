@@ -1,7 +1,0 @@
-release-date = "2022-05-09"
-
-[[entries]]
-id = "d2008649-2fe1-4ba5-b781-36f59a50be65"
-type = "feature"
-description = "Add AST support for UnaryOp, BinaryOp, Identifier and GetAttr"
-author = "@NiklasRosenstein"

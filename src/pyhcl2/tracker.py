@@ -1,5 +1,7 @@
-from collections.abc import Sequence
-from typing import Mapping, Self
+from __future__ import annotations
+
+from collections.abc import Sequence, dict_items
+from typing import Iterator, Mapping, NoReturn, Self
 
 from pyhcl2 import Block
 from pyhcl2.eval import EvaluationScope, Evaluator
@@ -10,16 +12,16 @@ class VisitedVariablesTracker(Sequence, Mapping):
     key: str | None
     children: list[Self]
 
-    def __init__(self, key: str | None = None):
+    def __init__(self, key: str | None = None) -> None:
         self.key = key
         self.children = []
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"VisitedVariablesTracker({self.key})"
 
-    def get_visited_variables(self, keys=tuple()):
+    def get_visited_variables(self, keys: tuple[str, ...] = tuple()) -> list[tuple[str, ...]]:
         dirty_children = []
-        key_tuple = keys + (self.key,) if self.key else keys
+        key_tuple = (*keys, self.key) if self.key else keys
 
         if self.key:
             dirty_children.append(key_tuple)
@@ -29,33 +31,33 @@ class VisitedVariablesTracker(Sequence, Mapping):
 
         return dirty_children
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: any) -> Self:
         # When a key is accessed, we create a new child node to track the access
         child = VisitedVariablesTracker(key=str(key))
         self.children.append(child)
         return child
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: any, value: any) -> None:
         # We don't actually store any values, so this is a no-op
         pass
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Self]:
         # Pretend to be a sequence of one element when iterated over
         yield self
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         # We need to be hashable to be used as a key in a dictionary
         return id(self)
 
-    def __len__(self):
+    def __len__(self) -> int:
         # Pretend to have a non-zero so bool(self) returns True
         return 1
 
-    def items(self):
+    def items(self) -> dict_items[Self, Self]:
         # Pretend to be a mapping of self to self
         return {self: self}.items()
 
-    def _not_implemented(self, *_args, **_kwargs):
+    def _not_implemented(self, *_args: any, **_kwargs: any) -> NoReturn:
         raise NotImplementedError
 
     __contains__ = _not_implemented
@@ -65,7 +67,7 @@ class VisitedVariablesTracker(Sequence, Mapping):
     keys = _not_implemented
     values = _not_implemented
 
-    def _return_self(self, *_args, **_kwargs):
+    def _return_self(self, *_args: any, **_kwargs: any) -> Self:
         return self
 
     __add__ = _return_self

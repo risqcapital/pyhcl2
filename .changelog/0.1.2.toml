@@ -1,7 +1,0 @@
-release-date = "2022-05-09"
-
-[[entries]]
-id = "becc36c8-4b4a-4d21-95ac-c70df57f8df5"
-type = "feature"
-description = "Add rudimentary support for evaluating HCL2 ASTs"
-author = "@NiklasRosenstein"

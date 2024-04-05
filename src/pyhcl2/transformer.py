@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import re
 import sys
-import typing as t
 
 from lark import Discard, Token, Transformer
 
@@ -52,27 +53,27 @@ class ToAstTransformer(Transformer):
     def add_expr(self, args: list[any]) -> BinaryOp:
         return BinaryOp(args[1], args[0], args[2])
 
-    def compare(self, args):
+    def compare(self, args: list[any]) -> BinaryOp:
         args = self.strip_new_line_tokens(args)
         return BinaryOp(args[1], args[0], args[2])
 
-    def and_test(self, args):
+    def and_test(self, args: list[any]) -> BinaryOp:
         args = self.strip_new_line_tokens(args)
         return BinaryOp("&&", args[0], args[1])
 
-    def or_test(self, args):
+    def or_test(self, args: list[any]) -> BinaryOp:
         return BinaryOp("||", args[0], args[1])
 
-    def not_test(self, args):
+    def not_test(self, args: list[any]) -> UnaryOp:
         return UnaryOp("!", args[0])
 
-    def neg(self, args):
+    def neg(self, args: list[any]) -> UnaryOp:
         return UnaryOp("-", args[0])
 
-    def conditional(self, args):
+    def conditional(self, args: list[any]) -> Conditional:
         return Conditional(args[0], args[1], args[2])
 
-    def get_attr(self, args: t.List[t.Any]) -> GetAttrKey:
+    def get_attr(self, args: list[any]) -> GetAttrKey:
         # print("get_attr", args)
         return GetAttrKey(args[0])
 
@@ -122,7 +123,7 @@ class ToAstTransformer(Transformer):
     def body(self, args: list[any]) -> list[any]:
         return args
 
-    def block(self, args: t.List[t.Any]) -> Block:
+    def block(self, args: list[any]) -> Block:
         args = self.strip_new_line_tokens(args)
         return Block(args[0].name, args[1:-1], args[-1])
 
@@ -139,7 +140,7 @@ class ToAstTransformer(Transformer):
         # print("object_elem", args)
         return args
 
-    def tuple(self, args: t.List[t.Any]) -> Array:
+    def tuple(self, args: list[any]) -> Array:
         args = self.strip_new_line_tokens(args)
         return Array(args)
 
@@ -180,7 +181,7 @@ class ToAstTransformer(Transformer):
         # print("attr_splat", args)
         return args
 
-    def attr_splat_expr_term(self, args: t.List[t.Any]) -> AttrSplat:
+    def attr_splat_expr_term(self, args: list[any]) -> AttrSplat:
         # print("attr_splat_expr_term", args)
         return AttrSplat(*args)
 
@@ -188,7 +189,7 @@ class ToAstTransformer(Transformer):
         # print("full_splat", args)
         return args
 
-    def full_splat_expr_term(self, args: t.List[t.Any]) -> IndexSplat:
+    def full_splat_expr_term(self, args: list[any]) -> IndexSplat:
         # print("full_splat_expr_term", args)
         return IndexSplat(*args)
 
@@ -217,15 +218,16 @@ class ToAstTransformer(Transformer):
         # print("for_cond", args)
         return args[0]
 
+    # noinspection DuplicatedCode
     def for_tuple_expr(self, args: list[any]) -> ForTupleExpression:
         args = self.strip_new_line_tokens(args)
         # print("for_tuple_expr", args)
         for_intro = args[0]
         value_ident = for_intro[0]
-        key_ident = for_intro[1] if len(for_intro) == 3 else None
+        key_ident = for_intro[1] if len(for_intro) == 3 else None  # noqa: PLR2004
         collection = for_intro[-1]
         expression = args[1]
-        condition = args[2] if len(args) == 3 else None
+        condition = args[2] if len(args) == 3 else None  # noqa: PLR2004
 
         return ForTupleExpression(
             key_ident,
@@ -235,16 +237,17 @@ class ToAstTransformer(Transformer):
             condition
         )
 
+    # noinspection DuplicatedCode
     def for_object_expr(self, args: list[any]) -> ForObjectExpression:
         args = self.strip_new_line_tokens(args)
         # print("for_tuple_expr", args)
         for_intro = args[0]
         value_ident = for_intro[0]
-        key_ident = for_intro[1] if len(for_intro) == 3 else None
+        key_ident = for_intro[1] if len(for_intro) == 3 else None  # noqa: PLR2004
         collection = for_intro[-1]
         key_expression = args[1]
         value_expression = args[2]
-        condition = args[3] if len(args) == 4 else None
+        condition = args[3] if len(args) == 4 else None  # noqa: PLR2004
 
         return ForObjectExpression(
             key_ident,

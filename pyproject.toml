@@ -22,6 +22,7 @@ Repository = "https://github.com/risqcapital/pyhcl2"
 [tool.poetry.dependencies]
 python = ">= 3.8, < 4"
 termcolor = "^2.4.0"
+lark = "^1.1.9"
 
 [tool.poetry.dev-dependencies]
 ruff = "*"
@@ -40,4 +41,10 @@ extend-select = [
     "TRY", # tryceratops
     "RUF", # ruf,
     "FA102" # future-required-type-annotation
+]
+
+extend-ignore=[
+    "ANN101",
+    "ERA001",
+    "TRY003",
 ]
