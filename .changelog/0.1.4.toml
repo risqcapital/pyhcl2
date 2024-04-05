@@ -1,7 +1,0 @@
-release-date = "2022-05-09"
-
-[[entries]]
-id = "a28fe27d-e954-476c-9bb4-c2212411c898"
-type = "improvement"
-description = "Export `.ast` module members in global module"
-author = "@NiklasRosenstein"

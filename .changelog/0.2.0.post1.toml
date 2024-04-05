@@ -1,7 +1,0 @@
-release-date = "2022-05-09"
-
-[[entries]]
-id = "5f8d2764-646d-49bc-8b67-c69ff845a38d"
-type = "docs"
-description = "Fix readme"
-author = "@NiklasRosenstein"

@@ -1,7 +1,0 @@
-release-date = "2022-05-15"
-
-[[entries]]
-id = "6159face-adac-4f95-a136-e0db7daf49cd"
-type = "fix"
-description = "Fix parsing of function calls (`FunctionCall.name` is now correctly populated with a string), added a respective unit test"
-author = "@NiklasRosenstein"

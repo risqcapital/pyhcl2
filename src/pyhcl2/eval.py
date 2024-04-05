@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -44,10 +46,10 @@ class EvaluationScope:
             return self.parent[item]
         raise ValueError(f"Variable {item} not set")
 
-    def __setitem__(self, key: str, value: Value):
+    def __setitem__(self, key: str, value: Value) -> None:
         self.variables[key] = value
 
-    def __contains__(self, item):
+    def __contains__(self, item: Value) -> bool:
         return item in self.variables or (self.parent and item in self.parent)
 
     def child(self) -> Self:

@@ -1,7 +1,0 @@
-release-date = "2022-05-09"
-
-[[entries]]
-id = "14a468b3-60c8-4864-a85d-cc2b0d2ff5f3"
-type = "breaking change"
-description = "`GetAttr.on` is no longer optional"
-author = "@NiklasRosenstein"

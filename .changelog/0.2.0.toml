@@ -1,7 +1,0 @@
-release-date = "2022-05-09"
-
-[[entries]]
-id = "ca707878-18a5-4067-bf58-5f353ba97083"
-type = "breaking change"
-description = "Move evaluation code to new `hcl2-eval` package"
-author = "@NiklasRosenstein"

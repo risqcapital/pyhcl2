@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import dataclasses
 import textwrap
 from dataclasses import dataclass
-from typing import Union, cast
+from typing import cast
 
 import termcolor
 import typing_extensions as te
@@ -13,7 +15,7 @@ def _no_color(text: str, *_args: any, **_kwargs: any) -> str:
     return text
 
 
-def pformat(value: Union[LiteralValue, "Node"], colored: bool = False) -> str:
+def pformat(value: LiteralValue | Node, colored: bool = False) -> str:
     _ = termcolor.colored if colored else _no_color
     if isinstance(value, Node):
         return value.pformat(colored)
@@ -23,7 +25,7 @@ def pformat(value: Union[LiteralValue, "Node"], colored: bool = False) -> str:
         return cast(str, _(repr(value), "cyan"))
 
 
-def pformat_list(values: list["Expression"], colored: bool = False) -> str:
+def pformat_list(values: list[Expression], colored: bool = False) -> str:
     result = ""
     if values:
         for value in values:
