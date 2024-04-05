@@ -2,24 +2,29 @@ import re
 import sys
 import typing as t
 
-from lark import Token, Transformer, Discard
+from lark import Discard, Token, Transformer
 
-from hcl2_ast._ast import (
+from pyhcl2._ast import (
     Array,
     Attribute,
     AttrSplat,
     BinaryOp,
     Block,
+    Conditional,
     Expression,
+    ForObjectExpression,
+    ForTupleExpression,
     FunctionCall,
     GetAttr,
+    GetAttrKey,
     GetIndex,
+    GetIndexKey,
     Identifier,
     IndexSplat,
     Literal,
     Object,
-    Conditional,
-    UnaryOp, Parenthesis, GetIndexKey, GetAttrKey, ForTupleExpression, ForObjectExpression,
+    Parenthesis,
+    UnaryOp,
 )
 
 HEREDOC_PATTERN = re.compile(r'<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1', re.S)
@@ -68,11 +73,11 @@ class ToAstTransformer(Transformer):
         return Conditional(args[0], args[1], args[2])
 
     def get_attr(self, args: t.List[t.Any]) -> GetAttrKey:
-        print("get_attr", args)
+        # print("get_attr", args)
         return GetAttrKey(args[0])
 
     def get_attr_expr_term(self, args: list[any]) -> GetAttr:
-        print("get_attr_expr_term", args)
+        # print("get_attr_expr_term", args)
         get_attr: GetAttrKey = args[1]
         return GetAttr(args[0], get_attr)
 
@@ -83,17 +88,17 @@ class ToAstTransformer(Transformer):
         return Literal(None)
 
     def int_lit(self, args: list[Token]) -> Literal:
-        print("int_lit", args)
+        # print("int_lit", args)
         return Literal(int("".join([str(arg) for arg in args])))
 
     #
     def expr_term(self, args: list[any]) -> any:
         args = self.strip_new_line_tokens(args)
-        print("expr_term", args)
+        # print("expr_term", args)
         return args[0]
 
     def bool_lit(self, value: list[Token]) -> Literal:
-        print("bool_lit", value)
+        # print("bool_lit", value)
         match value[0].value.lower():
             case "true":
                 return Literal(True)
@@ -102,16 +107,16 @@ class ToAstTransformer(Transformer):
         raise ValueError(f"Invalid boolean value: {value[0].value}")
 
     def string_lit(self, value: list[Token]) -> Literal:
-        print("string_lit", value)
+        # print("string_lit", value)
         return Literal(value[0].value[1:-1])
 
     def identifier(self, value: list[Token]) -> Expression:
-        print("identifier", value)
+        # print("identifier", value)
         return Identifier(value[0].value)
 
     def attribute(self, args: list[Expression]) -> Attribute:
         args = self.strip_new_line_tokens(args)
-        print("attribute", args)
+        # print("attribute", args)
         return Attribute(args[0].name, args[1])
 
     def body(self, args: list[any]) -> list[any]:
@@ -123,7 +128,7 @@ class ToAstTransformer(Transformer):
 
     def object(self, args: list[list[Expression]]) -> Object:
         args = self.strip_new_line_tokens(args)
-        print("object", args)
+        # print("object", args)
         fields = {
             kv[0]: kv[1] for kv in args
         }
@@ -131,7 +136,7 @@ class ToAstTransformer(Transformer):
         return Object(fields)
 
     def object_elem(self, args: list[Expression]) -> list[Expression]:
-        print("object_elem", args)
+        # print("object_elem", args)
         return args
 
     def tuple(self, args: t.List[t.Any]) -> Array:
@@ -144,7 +149,7 @@ class ToAstTransformer(Transformer):
 
     def function_call(self, args: list[any]) -> FunctionCall:
         args = self.strip_new_line_tokens(args)
-        print(args)
+        # print(args)
         var_args = False
         arguments = args[1] if len(args) > 1 else []
         if len(arguments) > 0 and isinstance(args[-1], EllipsisMarker):
@@ -155,63 +160,69 @@ class ToAstTransformer(Transformer):
 
     def arguments(self, args: list[Expression | EllipsisMarker]) -> list[Expression]:
         args = self.strip_new_line_tokens(args)
-        print("arguments", args)
+        # print("arguments", args)
         return args
 
     def ellipsis(self, args: list[Expression]) -> EllipsisMarker:
-        print("elipsis", args)
+        # print("elipsis", args)
         return EllipsisMarker()
 
     def index(self, args: list[Expression]) -> GetIndexKey:
-        print("index", args)
+        # print("index", args)
         return GetIndexKey(args[0])
 
     def index_expr_term(self, args: list[any]) -> GetIndex:
-        print("index_expr_term", args)
+        # print("index_expr_term", args)
         index: GetIndexKey = args[1]
         return GetIndex(args[0], index)
 
     def attr_splat(self, args: list[any]) -> list[any]:
-        print("attr_splat", args)
+        # print("attr_splat", args)
         return args
 
     def attr_splat_expr_term(self, args: t.List[t.Any]) -> AttrSplat:
-        print("attr_splat_expr_term", args)
+        # print("attr_splat_expr_term", args)
         return AttrSplat(*args)
 
     def full_splat(self, args: list[any]) -> list[any]:
-        print("full_splat", args)
+        # print("full_splat", args)
         return args
 
     def full_splat_expr_term(self, args: t.List[t.Any]) -> IndexSplat:
-        print("full_splat_expr_term", args)
+        # print("full_splat_expr_term", args)
         return IndexSplat(*args)
 
     def new_line_or_comment(self, _args: list) -> Discard:
+        return Discard()
+
+    def new_line_and_or_comma(self, _args: list) -> Discard:
         return Discard()
 
     def start(self, args: list) -> dict:
         args = self.strip_new_line_tokens(args)
         return args[0]
 
+    start_expr = start
+    start_expr_or_attribute = start
+
     def strip_new_line_tokens(self, args: list) -> list:
         return [arg for arg in args if arg != "\n" and not isinstance(arg, Discard)]
 
     def for_intro(self, args: list[any]) -> list[any]:
         args = self.strip_new_line_tokens(args)
-        print("for_intro", args)
+        # print("for_intro", args)
         return args
 
     def for_cond(self, args: list[any]) -> Expression:
-        print("for_cond", args)
+        # print("for_cond", args)
         return args[0]
 
     def for_tuple_expr(self, args: list[any]) -> ForTupleExpression:
         args = self.strip_new_line_tokens(args)
-        print("for_tuple_expr", args)
+        # print("for_tuple_expr", args)
         for_intro = args[0]
-        key_ident = for_intro[0]
-        value_ident = for_intro[1] if len(for_intro) == 3 else None
+        value_ident = for_intro[0]
+        key_ident = for_intro[1] if len(for_intro) == 3 else None
         collection = for_intro[-1]
         expression = args[1]
         condition = args[2] if len(args) == 3 else None
@@ -226,10 +237,10 @@ class ToAstTransformer(Transformer):
 
     def for_object_expr(self, args: list[any]) -> ForObjectExpression:
         args = self.strip_new_line_tokens(args)
-        print("for_tuple_expr", args)
+        # print("for_tuple_expr", args)
         for_intro = args[0]
-        key_ident = for_intro[0]
-        value_ident = for_intro[1] if len(for_intro) == 3 else None
+        value_ident = for_intro[0]
+        key_ident = for_intro[1] if len(for_intro) == 3 else None
         collection = for_intro[-1]
         key_expression = args[1]
         value_expression = args[2]

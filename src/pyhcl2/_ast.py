@@ -1,30 +1,29 @@
 import dataclasses
-
-from dataclasses import dataclass
 import textwrap
-import typing as t
+from dataclasses import dataclass
+from typing import Union, cast
 
 import termcolor
 import typing_extensions as te
 
-LiteralValue = t.Union[None, bool, int, float, str]
+LiteralValue = None | bool | int | float | str
 
 
-def _no_color(text: str, *args: t.Any, **kwargs: t.Any) -> str:
+def _no_color(text: str, *_args: any, **_kwargs: any) -> str:
     return text
 
 
-def pformat(value: t.Union[LiteralValue, "Node"], colored: bool = False) -> str:
+def pformat(value: Union[LiteralValue, "Node"], colored: bool = False) -> str:
     _ = termcolor.colored if colored else _no_color
     if isinstance(value, Node):
         return value.pformat(colored)
     if isinstance(value, str):
-        return t.cast(str, _(repr(value), "yellow"))
+        return cast(str, _(repr(value), "yellow"))
     else:
-        return t.cast(str, _(repr(value), "cyan"))
+        return cast(str, _(repr(value), "cyan"))
 
 
-def pformat_list(values: t.List["Expression"], colored: bool = False) -> str:
+def pformat_list(values: list["Expression"], colored: bool = False) -> str:
     result = ""
     if values:
         for value in values:
@@ -85,12 +84,12 @@ class Literal(Expression):
 
 @dataclass(frozen=True, eq=True)
 class Array(Expression):
-    values: t.List[Expression]
+    values: list[Expression]
 
 
 @dataclass(frozen=True, eq=True)
 class Object(Expression):
-    fields: t.Dict[Expression, Expression]
+    fields: dict[Expression, Expression]
 
     def pformat_field(self, field_name: str, colored: bool) -> str:
         if field_name == "fields":
@@ -115,7 +114,7 @@ class Identifier(Expression):
 @dataclass(frozen=True, eq=True)
 class FunctionCall(Expression):
     ident: Identifier
-    args: t.List[Expression]
+    args: list[Expression]
     var_args: bool = False
 
     def __post_init__(self) -> None:
@@ -195,8 +194,8 @@ class Parenthesis(Expression):
 
 @dataclass(frozen=True, eq=True)
 class ForTupleExpression(Expression):
-    key_ident: Identifier
-    value_ident: Identifier | None
+    key_ident: Identifier | None
+    value_ident: Identifier
     collection: Expression
     value: Expression
     condition: Expression | None
@@ -204,8 +203,8 @@ class ForTupleExpression(Expression):
 
 @dataclass(frozen=True, eq=True)
 class ForObjectExpression(Expression):
-    key_ident: Identifier
-    value_ident: Identifier | None
+    key_ident: Identifier | None
+    value_ident: Identifier
     collection: Expression
     key: Expression
     value: Expression
@@ -231,9 +230,12 @@ class Attribute(Stmt):
 class Block(Stmt):
     type: str
     labels: list[Literal | Identifier]
-    body: t.List[Stmt]
+    body: list[Stmt]
+
+    def key(self) -> tuple[str, ...]:
+        return tuple([self.type] + [label.name if isinstance(label, Identifier) else label.value if isinstance(label, Literal) else None for label in self.labels])
 
 
 @dataclass(frozen=True, eq=True)
 class Module(Node):
-    body: t.List[Stmt]
+    body: list[Stmt]
