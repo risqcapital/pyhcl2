@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import sys
 
-from lark import Discard, Token, Transformer
+from lark import Token, Transformer, Discard
 
 from pyhcl2._ast import (
     Array,
@@ -194,10 +194,10 @@ class ToAstTransformer(Transformer):
         return IndexSplat(*args)
 
     def new_line_or_comment(self, _args: list) -> Discard:
-        return Discard()
+        return Discard
 
     def new_line_and_or_comma(self, _args: list) -> Discard:
-        return Discard()
+        return Discard
 
     def start(self, args: list) -> dict:
         args = self.strip_new_line_tokens(args)
@@ -207,7 +207,7 @@ class ToAstTransformer(Transformer):
     start_expr_or_attribute = start
 
     def strip_new_line_tokens(self, args: list) -> list:
-        return [arg for arg in args if arg != "\n" and not isinstance(arg, Discard)]
+        return [arg for arg in args if arg != "\n" and not arg == Discard]
 
     def for_intro(self, args: list[any]) -> list[any]:
         args = self.strip_new_line_tokens(args)

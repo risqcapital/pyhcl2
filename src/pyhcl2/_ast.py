@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import cast
 
 import termcolor
-import typing_extensions as te
 
 LiteralValue = None | bool | int | float | str
 
