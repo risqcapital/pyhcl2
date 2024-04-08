@@ -12,6 +12,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v3
+    - name: Create pre-commit config for patching
+      run: |
+        cp .pre-commit-config.yaml .pre-commit-config-patched.yaml
     - name: Add log files to hooks
       uses: mikefarah/yq@v4.42.1
       with:
