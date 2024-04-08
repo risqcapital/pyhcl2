@@ -20,7 +20,9 @@ def parse_string(text: str, start: str) -> any:
         "hcl2.lark",
         parser="lalr",
         start=start,
-        cache=str(PARSER_FILE) + "." + start,  # Disable/Delete file to effect changes to the grammar
+        cache=str(PARSER_FILE)
+        + "."
+        + start,  # Disable/Delete file to effect changes to the grammar
         rel_to=__file__,
         propagate_positions=True,
         transformer=ToAstTransformer(),

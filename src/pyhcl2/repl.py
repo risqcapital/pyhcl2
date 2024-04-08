@@ -10,7 +10,11 @@ if __name__ == "__main__":
         match text:
             case "ast":
                 show_ast = not show_ast
-                print("Printing abstract syntax trees" if show_ast else "Not printing abstract syntax trees")
+                print(
+                    "Printing abstract syntax trees"
+                    if show_ast
+                    else "Not printing abstract syntax trees"
+                )
                 continue
             case "exit":
                 break

@@ -21,7 +21,9 @@ class VisitedVariablesTracker(Sequence, Mapping):
     def __repr__(self) -> str:
         return f"VisitedVariablesTracker({self.key})"
 
-    def get_visited_variables(self, keys: tuple[str, ...] = tuple()) -> set[tuple[str, ...]]:
+    def get_visited_variables(
+        self, keys: tuple[str, ...] = tuple()
+    ) -> set[tuple[str, ...]]:
         dirty_children = set()
         key_tuple = (*keys, self.key) if self.key else keys
 
@@ -98,7 +100,7 @@ def resolve_variable_references(node: Node) -> set[tuple[str, ...]]:
     return visited_variables_tracker.get_visited_variables()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ast = parse_file(open(Path(sys.argv[1])))
 
     blocks = [stmt for stmt in ast.body if isinstance(stmt, Block)]

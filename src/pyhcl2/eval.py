@@ -56,7 +56,7 @@ class EvaluationScope:
         return EvaluationScope(parent=self)
 
 
-camel_to_snake_pattern = re.compile(r'(?<!^)(?=[A-Z])')
+camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
 
 # noinspection PyMethodMayBeStatic
@@ -66,7 +66,9 @@ class Evaluator:
     can_short_circuit: bool = True
 
     def eval(self, expr: Node, scope: EvaluationScope) -> Value:
-        method = f"_eval_{camel_to_snake_pattern.sub('_', expr.__class__.__name__).lower()}"
+        method = (
+            f"_eval_{camel_to_snake_pattern.sub('_', expr.__class__.__name__).lower()}"
+        )
         # print(f"Calling {method} with {expr}")
         if hasattr(self, method):
             return getattr(self, method)(expr, scope)
@@ -129,7 +131,9 @@ class Evaluator:
         on = self.eval(node.on, scope)
         return self._evaluate_get_attr(on, node.key, scope)
 
-    def _evaluate_get_attr(self, on: Value, key: GetAttrKey, _scope: EvaluationScope) -> Value:
+    def _evaluate_get_attr(
+        self, on: Value, key: GetAttrKey, _scope: EvaluationScope
+    ) -> Value:
         key = key.ident.name
 
         try:
@@ -143,7 +147,9 @@ class Evaluator:
         on = self.eval(node.on, scope)
         return self._evaluate_get_index(on, node.key, scope)
 
-    def _evaluate_get_index(self, on: Value, key: GetIndexKey, scope: EvaluationScope) -> Value:
+    def _evaluate_get_index(
+        self, on: Value, key: GetIndexKey, scope: EvaluationScope
+    ) -> Value:
         key = self.eval(key.expr, scope)
 
         try:
@@ -198,11 +204,17 @@ class Evaluator:
     def _eval_parenthesis(self, node: Parenthesis, scope: EvaluationScope) -> Value:
         return self.eval(node.expr, scope)
 
-    def _eval_for_tuple_expression(self, node: ForTupleExpression, scope: EvaluationScope) -> Value:
+    def _eval_for_tuple_expression(
+        self, node: ForTupleExpression, scope: EvaluationScope
+    ) -> Value:
         collection = self.eval(node.collection, scope)
         result = []
 
-        iterator = collection.items() if isinstance(collection, Mapping) else enumerate(collection)
+        iterator = (
+            collection.items()
+            if isinstance(collection, Mapping)
+            else enumerate(collection)
+        )
 
         for k, v in iterator:
             child_ctx = scope.child()
@@ -210,7 +222,11 @@ class Evaluator:
             if node.key_ident:
                 child_ctx[node.key_ident.name] = k
 
-            condition = self.eval(node.condition, child_ctx) if node.condition is not None else True
+            condition = (
+                self.eval(node.condition, child_ctx)
+                if node.condition is not None
+                else True
+            )
             # Note: We MUST not short-circuit if self.can_short_circuit is False
             # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
             value = self.eval(node.value, child_ctx)
@@ -219,14 +235,20 @@ class Evaluator:
 
         return result
 
-    def _eval_for_object_expression(self, node: ForObjectExpression, scope: EvaluationScope) -> Value:
+    def _eval_for_object_expression(
+        self, node: ForObjectExpression, scope: EvaluationScope
+    ) -> Value:
         if node.grouping_mode:
             raise NotImplementedError("Grouping mode is not supported yet")
 
         collection = self.eval(node.collection, scope)
         result = {}
 
-        iterator = collection.items() if hasattr(collection, "items") else enumerate(collection)
+        iterator = (
+            collection.items()
+            if hasattr(collection, "items")
+            else enumerate(collection)
+        )
 
         for k, v in iterator:
             child_ctx = scope.child()
@@ -234,7 +256,11 @@ class Evaluator:
             if node.key_ident:
                 child_ctx[node.key_ident.name] = k
 
-            condition = self.eval(node.condition, child_ctx) if node.condition is not None else True
+            condition = (
+                self.eval(node.condition, child_ctx)
+                if node.condition is not None
+                else True
+            )
             # Note: We MUST NOT short-circuit evals so that we can be used as a variable tracker
             # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
             key = self.eval(node.key, child_ctx)
