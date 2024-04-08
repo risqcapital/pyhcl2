@@ -254,11 +254,13 @@ class Block(Stmt):
         )
 
     @cached_property
-    def attributes(self):
-        return {stmt.key: stmt.value for stmt in self.body if isinstance(stmt, Attribute)}
+    def attributes(self) -> dict[str, Expression]:
+        return {
+            stmt.key: stmt.value for stmt in self.body if isinstance(stmt, Attribute)
+        }
 
     @cached_property
-    def blocks(self):
+    def blocks(self) -> list[Block]:
         return [stmt for stmt in self.body if isinstance(stmt, Block)]
 
 
@@ -267,8 +269,12 @@ class Module(Node):
     body: list[Stmt]
 
     def get_blocks(self, block_type: str | None) -> list[Block]:
-        return [stmt for stmt in self.body if
-                isinstance(stmt, Block) and (block_type is None or stmt.type == block_type)]
+        return [
+            stmt
+            for stmt in self.body
+            if isinstance(stmt, Block)
+            and (block_type is None or stmt.type == block_type)
+        ]
 
     def get_block(self, block_type: str) -> Block | None:
         blocks = self.get_blocks(block_type)
