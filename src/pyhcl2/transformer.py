@@ -28,8 +28,10 @@ from pyhcl2._ast import (
     UnaryOp,
 )
 
-HEREDOC_PATTERN = re.compile(r'<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1', re.S)
-HEREDOC_TRIM_PATTERN = re.compile(r'<<-([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1', re.S)
+HEREDOC_PATTERN = re.compile(r"<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S)
+HEREDOC_TRIM_PATTERN = re.compile(
+    r"<<-([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S
+)
 
 
 class EllipsisMarker:
@@ -130,9 +132,7 @@ class ToAstTransformer(Transformer):
     def object(self, args: list[list[Expression]]) -> Object:
         args = self.strip_new_line_tokens(args)
         # print("object", args)
-        fields = {
-            kv[0]: kv[1] for kv in args
-        }
+        fields = {kv[0]: kv[1] for kv in args}
 
         return Object(fields)
 
@@ -230,11 +230,7 @@ class ToAstTransformer(Transformer):
         condition = args[2] if len(args) == 3 else None  # noqa: PLR2004
 
         return ForTupleExpression(
-            key_ident,
-            value_ident,
-            collection,
-            expression,
-            condition
+            key_ident, value_ident, collection, expression, condition
         )
 
     # noinspection DuplicatedCode
@@ -255,7 +251,7 @@ class ToAstTransformer(Transformer):
             collection,
             key_expression,
             value_expression,
-            condition
+            condition,
         )
 
     def heredoc_template(self, args: list[any]) -> Literal:
@@ -270,15 +266,15 @@ class ToAstTransformer(Transformer):
             raise RuntimeError("Invalid Heredoc token: %s" % args[0])
 
         text = match.group(2)
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         # calculate the min number of leading spaces in each line
         min_spaces = sys.maxsize
         for line in lines:
-            leading_spaces = len(line) - len(line.lstrip(' '))
+            leading_spaces = len(line) - len(line.lstrip(" "))
             min_spaces = min(min_spaces, leading_spaces)
 
         # trim off that number of leading spaces from each line
         lines = [line[min_spaces:] for line in lines]
 
-        return Literal('"%s"' % '\n'.join(lines))
+        return Literal('"%s"' % "\n".join(lines))

@@ -60,10 +60,14 @@ class Node:
         # noinspection PyDataclass
         fields = dataclasses.fields(self)
         for field in fields:
-            args.append(_(field.name, "cyan") + "=" + self.pformat_field(field.name, colored))
+            args.append(
+                _(field.name, "cyan") + "=" + self.pformat_field(field.name, colored)
+            )
         if any("\n" in arg for arg in args) and len(args) > 1:
             sep = ",\n"
-            args_string = f'(\n{sep.join(textwrap.indent(arg, "  ") for arg in args)}\n)'
+            args_string = (
+                f'(\n{sep.join(textwrap.indent(arg, "  ") for arg in args)}\n)'
+            )
         else:
             args_string = f'({", ".join(args)})'
         return f"{_(type(self).__name__, 'blue')}{args_string}"
@@ -236,7 +240,17 @@ class Block(Stmt):
     body: list[Stmt]
 
     def key(self) -> tuple[str, ...]:
-        return tuple([self.type] + [label.name if isinstance(label, Identifier) else label.value if isinstance(label, Literal) else None for label in self.labels])
+        return tuple(
+            [self.type]
+            + [
+                label.name
+                if isinstance(label, Identifier)
+                else label.value
+                if isinstance(label, Literal)
+                else None
+                for label in self.labels
+            ]
+        )
 
 
 @dataclass(frozen=True, eq=True)

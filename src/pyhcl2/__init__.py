@@ -52,5 +52,5 @@ __all__ = [
     "Object",
     "Parenthesis",
     "Stmt",
-    "UnaryOp"
+    "UnaryOp",
 ]
