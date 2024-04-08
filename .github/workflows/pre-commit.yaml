@@ -1,0 +1,42 @@
+name: pre-commit
+
+on:
+#  NOTE: This is a public repo, do not use pull_request_target without security review
+  pull_request:
+    paths-ignore:
+      - "CHANGELOG.md"
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+    - name: Add log files to hooks
+      uses: mikefarah/yq@v4.42.1
+      with:
+        cmd:  yq -i -o=yaml '. as $root | $root.repos[].hooks[] | .log_file = (["/tmp/", .id, ".log"] | join("")) | $root' .pre-commit-config-patched.yaml
+    - uses: pre-commit/action@v3.0.1
+      with:
+        extra_args: '--all-files --config .pre-commit-config-patched.yaml'
+    - name: Annotate ruff errors
+      run: |
+        cat <<'EOF' > /tmp/ruff-problem-matcher.json
+        {
+          "problemMatcher": [{
+            "owner": "ruff",
+            "pattern": [{
+              "regexp": "^(.*):(\\d+):(\\d+):\\s+(\\w+)\\s+(.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }]
+          }]
+        }
+        EOF
+        echo "::add-matcher::/tmp/ruff-problem-matcher.json"   
+        sed -e 's/\x1b\[[0-9;]*m//g' /tmp/ruff.log
+        echo "::remove-matcher owner=ruff::"
+      if: failure()
