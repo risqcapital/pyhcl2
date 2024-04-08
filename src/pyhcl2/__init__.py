@@ -23,11 +23,13 @@ from ._ast import (
     Stmt,
     UnaryOp,
 )
-from .parse import parse_file, parse_string
+from .parse import parse_file, parse_module, parse_expr, parse_expr_or_attribute
 
 __all__ = [
     "parse_file",
-    "parse_string",
+    "parse_module",
+    "parse_expr",
+    "parse_expr_or_attribute",
     "Array",
     "AttrSplat",
     "Attribute",
