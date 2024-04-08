@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import sys
 
-from lark import Token, Transformer, Discard
+from lark import Discard, Token, Transformer
 
 from pyhcl2._ast import (
     Array,

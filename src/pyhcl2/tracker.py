@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Iterator, Mapping, NoReturn, Self, ItemsView
+from typing import ItemsView, Iterator, Mapping, NoReturn, Self
 
 from pyhcl2 import Block, Node
 from pyhcl2.eval import EvaluationScope, Evaluator
