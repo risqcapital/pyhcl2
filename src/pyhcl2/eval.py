@@ -65,7 +65,7 @@ class Evaluator:
     # Note: We MUST not short-circuit if self.can_short_circuit is False
     can_short_circuit: bool = True
 
-    def eval(self, expr: Node, scope: EvaluationScope) -> Value:
+    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:
         method = (
             f"_eval_{camel_to_snake_pattern.sub('_', expr.__class__.__name__).lower()}"
         )
