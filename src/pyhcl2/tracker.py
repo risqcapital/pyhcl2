@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Iterator, Mapping, NoReturn, Self, ItemsView
 
-from pyhcl2 import Block
+from pyhcl2 import Block, Node
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_file
 
@@ -87,17 +89,22 @@ class VisitedVariablesTracker(Sequence, Mapping):
     __reversed__ = _return_self
 
 
+def resolve_variable_references(node: Node) -> set[tuple[str, ...]]:
+    visited_variables_tracker = VisitedVariablesTracker()
+    # noinspection PyTypeChecker
+    scope = EvaluationScope(variables=visited_variables_tracker)
+    Evaluator(can_short_circuit=False).eval(node, scope)
+
+    return visited_variables_tracker.get_visited_variables()
+
+
 if __name__ == '__main__':
-    ast = parse_file(open("/home/ben/dev/risq/cicd-framework-test/cicd.hcl"))
+    ast = parse_file(open(Path(sys.argv[1])))
 
     blocks = [stmt for stmt in ast.body if isinstance(stmt, Block)]
 
     for block_under_test in blocks:
-        visited_variables_tracker = VisitedVariablesTracker()
+        variable_references = resolve_variable_references(block_under_test)
 
-        # noinspection PyTypeChecker
-        scope = EvaluationScope(variables=visited_variables_tracker)
-        Evaluator(can_short_circuit=False).eval(block_under_test, scope)
-
-        for dirty_child in visited_variables_tracker.get_visited_variables():
+        for dirty_child in variable_references:
             print(block_under_test.key(), "depends_on", dirty_child)
