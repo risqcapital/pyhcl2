@@ -4,6 +4,7 @@ import dataclasses
 import textwrap
 import typing as t
 from dataclasses import dataclass
+from functools import cached_property
 from typing import cast
 
 import termcolor
@@ -251,6 +252,14 @@ class Block(Stmt):
                 for label in self.labels
             ]
         )
+
+    @cached_property
+    def attributes(self):
+        return {stmt.key: stmt.value for stmt in self.body if isinstance(stmt, Attribute)}
+
+    @cached_property
+    def blocks(self):
+        return [stmt for stmt in self.body if isinstance(stmt, Block)]
 
 
 @dataclass(frozen=True, eq=True)
