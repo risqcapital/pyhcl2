@@ -21,5 +21,5 @@ jobs:
       - uses: google-github-actions/release-please-action@v4
         id: release
         with:
-          release-type: ${{ inputs.release-type }}
+          release-type: python
           token: ${{ steps.app-token.outputs.token }}
