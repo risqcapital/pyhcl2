@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import textwrap
+import typing as t
 from dataclasses import dataclass
 from typing import cast
 
@@ -159,13 +160,13 @@ class IndexSplat(Expression):
 
 @dataclass(frozen=True, eq=True)
 class UnaryOp(Expression):
-    op: te.Literal["-", "!"]
+    op: t.Literal["-", "!"]
     expr: Expression
 
 
 @dataclass(frozen=True, eq=True)
 class BinaryOp(Expression):
-    op: te.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
+    op: t.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
     left: Expression
     right: Expression
 
