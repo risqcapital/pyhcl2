@@ -76,14 +76,31 @@ class Evaluator:
             raise ValueError(f"Unsupported expression type {expr}")
 
     def _eval_block(self, node: Block, scope: EvaluationScope) -> Value:
+        result = {}
+
+        def nested_set(dic: dict[any, any], keys: list[any], val: any) -> None:
+            for k in keys[:-1]:
+                dic = dic.setdefault(k, {})
+            dic[keys[-1]] = val
+
         for stmt in node.body:
-            self.eval(stmt, scope.child())
-        return None
+            key = (
+                stmt.key()
+                if isinstance(stmt, Block)
+                else [stmt.key]
+                if isinstance(stmt, Attribute)
+                else None
+            )
+            value = self.eval(stmt, scope.child())
+            if key:
+                nested_set(result, key, value)
+
+        return result
 
     def _eval_attribute(self, node: Attribute, scope: EvaluationScope) -> Value:
         value = self.eval(node.value, scope)
         scope[node.key] = value
-        return None
+        return value
 
     def _eval_binary_op(self, node: BinaryOp, scope: EvaluationScope) -> Value:
         # Note: We MUST not short-circuit if self.can_short_circuit is False
