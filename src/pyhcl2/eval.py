@@ -84,16 +84,21 @@ class Evaluator:
             dic[keys[-1]] = val
 
         for stmt in node.body:
-            key = (
-                stmt.key()
-                if isinstance(stmt, Block)
-                else [stmt.key]
-                if isinstance(stmt, Attribute)
-                else None
-            )
-            value = self.eval(stmt, scope.child())
-            if key:
+            if isinstance(stmt, Block):
+                key = stmt.key()
+                value = self.eval(stmt, scope.child())
+                result_iter = result
+                for k in key[:-1]:
+                    result_iter = result_iter.setdefault(k, {})
+                result_iter[key[-1]].setdefault(key, []).append(value)
+
+            elif isinstance(stmt, Attribute):
+                key = [stmt.key]
+                value = self.eval(stmt, scope.child())
                 nested_set(result, key, value)
+            else:
+                raise ValueError(f"Unsupported statement type {stmt}")
+
 
         return result
 
