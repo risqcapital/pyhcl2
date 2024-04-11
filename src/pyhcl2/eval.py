@@ -90,7 +90,7 @@ class Evaluator:
                 result_iter = result
                 for k in key[:-1]:
                     result_iter = result_iter.setdefault(k, {})
-                result_iter[key[-1]].setdefault(key, []).append(value)
+                result_iter.setdefault(key[-1], []).append(value)
 
             elif isinstance(stmt, Attribute):
                 key = [stmt.key]
