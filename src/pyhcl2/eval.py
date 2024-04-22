@@ -99,7 +99,6 @@ class Evaluator:
             else:
                 raise ValueError(f"Unsupported statement type {stmt}")
 
-
         return result
 
     def _eval_attribute(self, node: Attribute, scope: EvaluationScope) -> Value:
