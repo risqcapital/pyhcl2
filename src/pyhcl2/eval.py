@@ -97,7 +97,7 @@ class Evaluator:
                 value = self.eval(stmt, scope.child())
                 nested_set(result, key, value)
             else:
-                raise ValueError(f"Unsupported statement type {stmt}")
+                raise TypeError(f"Unsupported statement type {stmt}")
 
         return result
 
