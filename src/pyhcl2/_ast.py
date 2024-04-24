@@ -276,8 +276,16 @@ class Module(Node):
             and (block_type is None or stmt.type == block_type)
         ]
 
-    def get_block(self, block_type: str) -> Block | None:
+    def get_block(self, block_type: str, *labels: str) -> Block | None:
         blocks = self.get_blocks(block_type)
+
+        if len(labels) > 0:
+            blocks = [
+                block
+                for block in blocks
+                if block.labels == [Literal(label) for label in labels]
+            ]
+
         if len(blocks) > 1:
             raise ValueError(f"Multiple {block_type} blocks found")
         if len(blocks) == 0:
