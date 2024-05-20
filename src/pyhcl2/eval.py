@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Self
+from typing import TYPE_CHECKING, Any, Self, TypeAliasType
 
 from pyhcl2 import BinaryOp
 from pyhcl2._ast import (
@@ -29,7 +29,11 @@ from pyhcl2._ast import (
     UnaryOp,
 )
 
-Value = LiteralValue | dict[str, LiteralValue] | list[LiteralValue]
+if TYPE_CHECKING:
+    # Mypy doesn't properly support TypeAliasType yet
+    Value = LiteralValue | dict[str, "Value"] | list["Value"]
+else:
+    Value = TypeAliasType("Value", LiteralValue | dict[str, "Value"] | list["Value"])
 
 
 @dataclass
@@ -78,7 +82,7 @@ class Evaluator:
     def _eval_block(self, node: Block, scope: EvaluationScope) -> Value:
         result = {}
 
-        def nested_set(dic: dict[any, any], keys: list[any], val: any) -> None:
+        def nested_set(dic: dict[Any, Any], keys: list[Any], val: Any) -> None:
             for k in keys[:-1]:
                 dic = dic.setdefault(k, {})
             dic[keys[-1]] = val
@@ -190,13 +194,18 @@ class Evaluator:
             raise ValueError(f"Variable {node.name} not set")
 
     def _eval_object(self, node: Object, scope: EvaluationScope) -> Value:
-        result = {}
+        result: dict[str, Value] = {}
         for key_expr, value_expr in node.fields.items():
+            key: Value
             match key_expr:
                 case Identifier(name):
                     key = name
-                case Parenthesis(node):
-                    key = self.eval(node, scope)
+                case Literal(str(literal)):
+                    key = literal
+                case Parenthesis(expr):
+                    key = self.eval(expr, scope)
+                    if not isinstance(key, str):
+                        raise TypeError(f"Invalid key expression {key_expr}")
                 case _:
                     raise ValueError(f"Invalid key expression {key_expr}")
 
