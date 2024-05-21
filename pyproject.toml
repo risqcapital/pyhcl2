@@ -21,6 +21,7 @@ Repository = "https://github.com/risqcapital/pyhcl2"
 python = ">= 3.10, < 4"
 termcolor = "^2.4.0"
 lark = "^1.1.9"
+networkx = "^3.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
