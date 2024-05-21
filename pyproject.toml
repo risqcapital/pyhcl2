@@ -24,6 +24,7 @@ lark = "^1.1.9"
 networkx = "^3.3"
 
 [tool.poetry.group.dev.dependencies]
+pydantic = "^2.7.1"
 pytest = "^8.1.1"
 ruff = "*"
 types-dataclasses = "^0.6.5"
@@ -49,3 +50,6 @@ extend-ignore=[
     "ERA001",
     "TRY003",
 ]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
