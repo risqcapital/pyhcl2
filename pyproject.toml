@@ -27,6 +27,7 @@ pytest = "^8.1.1"
 ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
+mypy = "^1.10.0"
 
 [tool.ruff.lint]
 extend-select = [
