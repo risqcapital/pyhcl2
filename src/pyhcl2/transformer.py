@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
+from typing import Any
 
 from lark import Discard, Token, Transformer
 
@@ -49,37 +50,44 @@ class ToAstTransformer(Transformer):
     def comp_op(self, args: list[Token]) -> str:
         return args[0].value
 
-    def term(self, args: list[any]) -> BinaryOp:
+    def eq_op(self, args: list[Token]) -> str:
+        return args[0].value
+
+    def term(self, args: list[Any]) -> BinaryOp:
         return BinaryOp(args[1], args[0], args[2])
 
-    def add_expr(self, args: list[any]) -> BinaryOp:
+    def add_expr(self, args: list[Any]) -> BinaryOp:
         return BinaryOp(args[1], args[0], args[2])
 
-    def compare(self, args: list[any]) -> BinaryOp:
+    def compare(self, args: list[Any]) -> BinaryOp:
         args = self.strip_new_line_tokens(args)
         return BinaryOp(args[1], args[0], args[2])
 
-    def and_test(self, args: list[any]) -> BinaryOp:
+    def equality(self, args: list[Any]) -> BinaryOp:
+        args = self.strip_new_line_tokens(args)
+        return BinaryOp(args[1], args[0], args[2])
+
+    def and_test(self, args: list[Any]) -> BinaryOp:
         args = self.strip_new_line_tokens(args)
         return BinaryOp("&&", args[0], args[1])
 
-    def or_test(self, args: list[any]) -> BinaryOp:
+    def or_test(self, args: list[Any]) -> BinaryOp:
         return BinaryOp("||", args[0], args[1])
 
-    def not_test(self, args: list[any]) -> UnaryOp:
+    def not_test(self, args: list[Any]) -> UnaryOp:
         return UnaryOp("!", args[0])
 
-    def neg(self, args: list[any]) -> UnaryOp:
+    def neg(self, args: list[Any]) -> UnaryOp:
         return UnaryOp("-", args[0])
 
-    def conditional(self, args: list[any]) -> Conditional:
+    def conditional(self, args: list[Any]) -> Conditional:
         return Conditional(args[0], args[1], args[2])
 
-    def get_attr(self, args: list[any]) -> GetAttrKey:
+    def get_attr(self, args: list[Any]) -> GetAttrKey:
         # print("get_attr", args)
         return GetAttrKey(args[0])
 
-    def get_attr_expr_term(self, args: list[any]) -> GetAttr:
+    def get_attr_expr_term(self, args: list[Any]) -> GetAttr:
         # print("get_attr_expr_term", args)
         get_attr: GetAttrKey = args[1]
         return GetAttr(args[0], get_attr)
@@ -95,7 +103,7 @@ class ToAstTransformer(Transformer):
         return Literal(int("".join([str(arg) for arg in args])))
 
     #
-    def expr_term(self, args: list[any]) -> any:
+    def expr_term(self, args: list[Any]) -> Any:
         args = self.strip_new_line_tokens(args)
         # print("expr_term", args)
         return args[0]
@@ -122,10 +130,10 @@ class ToAstTransformer(Transformer):
         # print("attribute", args)
         return Attribute(args[0].name, args[1])
 
-    def body(self, args: list[any]) -> list[any]:
+    def body(self, args: list[Any]) -> list[Any]:
         return args
 
-    def block(self, args: list[any]) -> Block:
+    def block(self, args: list[Any]) -> Block:
         args = self.strip_new_line_tokens(args)
         return Block(args[0].name, args[1:-1], args[-1])
 
@@ -140,7 +148,7 @@ class ToAstTransformer(Transformer):
         # print("object_elem", args)
         return args
 
-    def tuple(self, args: list[any]) -> Array:
+    def tuple(self, args: list[Any]) -> Array:
         args = self.strip_new_line_tokens(args)
         return Array(args)
 
@@ -148,12 +156,11 @@ class ToAstTransformer(Transformer):
         args = self.strip_new_line_tokens(args)
         return Parenthesis(args[0])
 
-    def function_call(self, args: list[any]) -> FunctionCall:
+    def function_call(self, args: list[Any]) -> FunctionCall:
         args = self.strip_new_line_tokens(args)
-        # print(args)
         var_args = False
         arguments = args[1] if len(args) > 1 else []
-        if len(arguments) > 0 and isinstance(args[-1], EllipsisMarker):
+        if len(arguments) > 0 and isinstance(arguments[-1], EllipsisMarker):
             arguments = arguments[:-1]
             var_args = True
 
@@ -172,24 +179,24 @@ class ToAstTransformer(Transformer):
         # print("index", args)
         return GetIndexKey(args[0])
 
-    def index_expr_term(self, args: list[any]) -> GetIndex:
+    def index_expr_term(self, args: list[Any]) -> GetIndex:
         # print("index_expr_term", args)
         index: GetIndexKey = args[1]
         return GetIndex(args[0], index)
 
-    def attr_splat(self, args: list[any]) -> list[any]:
+    def attr_splat(self, args: list[Any]) -> list[Any]:
         # print("attr_splat", args)
         return args
 
-    def attr_splat_expr_term(self, args: list[any]) -> AttrSplat:
+    def attr_splat_expr_term(self, args: list[Any]) -> AttrSplat:
         # print("attr_splat_expr_term", args)
         return AttrSplat(*args)
 
-    def full_splat(self, args: list[any]) -> list[any]:
+    def full_splat(self, args: list[Any]) -> list[Any]:
         # print("full_splat", args)
         return args
 
-    def full_splat_expr_term(self, args: list[any]) -> IndexSplat:
+    def full_splat_expr_term(self, args: list[Any]) -> IndexSplat:
         # print("full_splat_expr_term", args)
         return IndexSplat(*args)
 
@@ -209,22 +216,22 @@ class ToAstTransformer(Transformer):
     def strip_new_line_tokens(self, args: list) -> list:
         return [arg for arg in args if arg != "\n" and not arg == Discard]
 
-    def for_intro(self, args: list[any]) -> list[any]:
+    def for_intro(self, args: list[Any]) -> list[Any]:
         args = self.strip_new_line_tokens(args)
         # print("for_intro", args)
         return args
 
-    def for_cond(self, args: list[any]) -> Expression:
+    def for_cond(self, args: list[Any]) -> Expression:
         # print("for_cond", args)
         return args[0]
 
     # noinspection DuplicatedCode
-    def for_tuple_expr(self, args: list[any]) -> ForTupleExpression:
+    def for_tuple_expr(self, args: list[Any]) -> ForTupleExpression:
         args = self.strip_new_line_tokens(args)
         # print("for_tuple_expr", args)
         for_intro = args[0]
-        value_ident = for_intro[0]
-        key_ident = for_intro[1] if len(for_intro) == 3 else None  # noqa: PLR2004
+        value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
+        key_ident = for_intro[0] if len(for_intro) == 3 else None  # noqa: PLR2004
         collection = for_intro[-1]
         expression = args[1]
         condition = args[2] if len(args) == 3 else None  # noqa: PLR2004
@@ -234,16 +241,19 @@ class ToAstTransformer(Transformer):
         )
 
     # noinspection DuplicatedCode
-    def for_object_expr(self, args: list[any]) -> ForObjectExpression:
+    def for_object_expr(self, args: list[Any]) -> ForObjectExpression:
         args = self.strip_new_line_tokens(args)
-        # print("for_tuple_expr", args)
+        print("for_object_expression", args)
         for_intro = args[0]
-        value_ident = for_intro[0]
-        key_ident = for_intro[1] if len(for_intro) == 3 else None  # noqa: PLR2004
+        value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
+        key_ident = for_intro[0] if len(for_intro) == 3 else None  # noqa: PLR2004
         collection = for_intro[-1]
         key_expression = args[1]
         value_expression = args[2]
-        condition = args[3] if len(args) == 4 else None  # noqa: PLR2004
+
+        grouping_mode = isinstance(args[-1], EllipsisMarker) or isinstance(args[-2], EllipsisMarker)
+
+        condition = args[-1] if len(args) >= 4 and not isinstance(args[-1], EllipsisMarker) else None  # noqa: PLR2004
 
         return ForObjectExpression(
             key_ident,
@@ -252,15 +262,16 @@ class ToAstTransformer(Transformer):
             key_expression,
             value_expression,
             condition,
+            grouping_mode
         )
 
-    def heredoc_template(self, args: list[any]) -> Literal:
+    def heredoc_template(self, args: list[Any]) -> Literal:
         match = HEREDOC_PATTERN.match(str(args[0]))
         if not match:
             raise RuntimeError("Invalid Heredoc token: %s" % args[0])
         return Literal('"%s"' % match.group(2))
 
-    def heredoc_template_trim(self, args: list[any]) -> Literal:
+    def heredoc_template_trim(self, args: list[Any]) -> Literal:
         match = HEREDOC_TRIM_PATTERN.match(str(args[0]))
         if not match:
             raise RuntimeError("Invalid Heredoc token: %s" % args[0])
