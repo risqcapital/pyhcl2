@@ -3,7 +3,14 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Self, TypeAliasType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Self,
+    TypeAliasType,
+    cast,
+)
 
 from pyhcl2 import BinaryOp
 from pyhcl2._ast import (
@@ -54,9 +61,13 @@ class EvaluationScope:
         self.variables[key] = value
 
     def __contains__(self, item: Value) -> bool:
-        return item in self.variables or (self.parent and item in self.parent)
+        if item in self.variables:
+            return True
+        if self.parent:
+            return item in self.parent
+        return False
 
-    def child(self) -> Self:
+    def child(self) -> EvaluationScope:
         return EvaluationScope(parent=self)
 
 
@@ -80,26 +91,24 @@ class Evaluator:
             raise ValueError(f"Unsupported expression type {expr}")
 
     def _eval_block(self, node: Block, scope: EvaluationScope) -> Value:
-        result = {}
-
-        def nested_set(dic: dict[Any, Any], keys: list[Any], val: Any) -> None:
-            for k in keys[:-1]:
-                dic = dic.setdefault(k, {})
-            dic[keys[-1]] = val
+        result: dict[str, Value] = {}
 
         for stmt in node.body:
             if isinstance(stmt, Block):
-                key = stmt.key()
+                key = stmt.key_path
                 value = self.eval(stmt, scope.child())
                 result_iter = result
                 for k in key[:-1]:
-                    result_iter = result_iter.setdefault(k, {})
-                result_iter.setdefault(key[-1], []).append(value)
+                    result_iter = cast(dict[str, Value], result_iter.setdefault(k, {}))
+                cast(list[Value], result_iter.setdefault(key[-1], [])).append(value)
 
             elif isinstance(stmt, Attribute):
-                key = [stmt.key]
+                key = stmt.key_path
                 value = self.eval(stmt, scope.child())
-                nested_set(result, key, value)
+                result_iter = result
+                for k in key[:-1]:
+                    result_iter = cast(dict[str, Value], result_iter.setdefault(k, {}))
+                result_iter[key[-1]] = value
             else:
                 raise TypeError(f"Unsupported statement type {stmt}")
 
@@ -136,6 +145,7 @@ class Evaluator:
         if callable(operation):
             return operation(left, right)
         else:
+            assert isinstance(operation, str)
             return getattr(left, operation)(right)
 
     def _eval_unary_op(self, node: UnaryOp, scope: EvaluationScope) -> Value:
@@ -150,6 +160,7 @@ class Evaluator:
         if callable(operation):
             return operation(value)
         else:
+            assert isinstance(operation, str)
             return getattr(value, operation)()
 
     def _eval_get_attr(self, node: GetAttr, scope: EvaluationScope) -> Value:
@@ -159,14 +170,15 @@ class Evaluator:
     def _evaluate_get_attr(
         self, on: Value, key: GetAttrKey, _scope: EvaluationScope
     ) -> Value:
-        key = key.ident.name
+        key_value = key.ident.name
 
         try:
-            return on[key]
+            assert isinstance(on, Mapping)
+            return on[key_value]
         except KeyError:
-            raise ValueError(f"Key {key} not found in {on}")
+            raise ValueError(f"Key {key_value} not found in {on}")
         except IndexError:
-            raise ValueError(f"Index {key} out of bounds in {on}")
+            raise ValueError(f"Index {key_value} out of bounds in {on}")
 
     def _eval_get_index(self, node: GetIndex, scope: EvaluationScope) -> Value:
         on = self.eval(node.on, scope)
@@ -175,14 +187,21 @@ class Evaluator:
     def _evaluate_get_index(
         self, on: Value, key: GetIndexKey, scope: EvaluationScope
     ) -> Value:
-        key = self.eval(key.expr, scope)
+        key_value = self.eval(key.expr, scope)
 
         try:
-            return on[key]
+            if isinstance(on, Mapping):
+                assert isinstance(key_value, str)
+                return on[key_value]
+            elif isinstance(on, Sequence) and not isinstance(on, str):
+                assert isinstance(key_value, int)
+                return on[key_value]
+            else:
+                raise TypeError(f"Invalid index operation on {type(on)} {on}")
         except KeyError:
-            raise ValueError(f"Key {key} not found in {on}")
+            raise ValueError(f"Key {key_value} not found in {on}")
         except IndexError:
-            raise ValueError(f"Index {key} out of bounds in {on}")
+            raise ValueError(f"Index {key_value} out of bounds in {on}")
 
     def _eval_literal(self, node: Literal, _ctx: EvaluationScope) -> Value:
         return node.value
@@ -238,13 +257,21 @@ class Evaluator:
         self, node: ForTupleExpression, scope: EvaluationScope
     ) -> Value:
         collection = self.eval(node.collection, scope)
-        result = []
+        result: list[Value] = []
 
-        iterator = (
+        if collection is None:
+            return result
+
+        iterator: Iterable[tuple[Any, Value]] | None = (
             collection.items()
             if isinstance(collection, Mapping)
             else enumerate(collection)
-        )
+            if isinstance(collection, Sequence) and not isinstance(collection, str)
+            else None
+        )  # type: ignore
+
+        if iterator is None:
+            raise TypeError(f"Type of {collection} is not iterable")
 
         for k, v in iterator:
             child_ctx = scope.child()
@@ -272,13 +299,21 @@ class Evaluator:
             raise NotImplementedError("Grouping mode is not supported yet")
 
         collection = self.eval(node.collection, scope)
-        result = {}
+        result: dict[str, Value] = {}
 
-        iterator = (
+        if collection is None:
+            return result
+
+        iterator: Iterable[tuple[str | int, Value]] | None = (
             collection.items()
             if hasattr(collection, "items")
             else enumerate(collection)
+            if isinstance(collection, Sequence) and not isinstance(collection, str)
+            else None
         )
+
+        if iterator is None:
+            raise TypeError(f"Type of {collection} is not iterable")
 
         for k, v in iterator:
             child_ctx = scope.child()
@@ -294,6 +329,8 @@ class Evaluator:
             # Note: We MUST NOT short-circuit evals so that we can be used as a variable tracker
             # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
             key = self.eval(node.key, child_ctx)
+            if not isinstance(key, str):
+                raise TypeError(f"Type of {node.key} is not string")
             value = self.eval(node.value, child_ctx)
             if condition is True:
                 result[key] = value
@@ -303,12 +340,11 @@ class Evaluator:
     def _eval_attr_splat(self, node: AttrSplat, scope: EvaluationScope) -> Value:
         on = self.eval(node.on, scope)
 
-        # Note: `str` is a `Sequence`, so we need to exclude it
-        if not isinstance(on, Sequence) and not isinstance(on, str):
-            if on is None:
-                on = []
-            else:
-                on = [on]
+        if on is None:
+            return []
+
+        if not isinstance(on, Sequence) or isinstance(on, str):
+            on = [on]
 
         values = []
 
@@ -323,12 +359,11 @@ class Evaluator:
     def _eval_index_splat(self, node: IndexSplat, scope: EvaluationScope) -> Value:
         on = self.eval(node.on, scope)
 
-        # Note: `str` is a `Sequence`, so we need to exclude it
-        if not isinstance(on, Sequence) and not isinstance(on, str):
-            if on is None:
-                on = []
-            else:
-                on = [on]
+        if on is None:
+            return []
+
+        if not isinstance(on, Sequence) or isinstance(on, str):
+            on = [on]
 
         values = []
 
