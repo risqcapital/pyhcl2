@@ -251,9 +251,15 @@ class ToAstTransformer(Transformer):
         key_expression = args[1]
         value_expression = args[2]
 
-        grouping_mode = isinstance(args[-1], EllipsisMarker) or isinstance(args[-2], EllipsisMarker)
+        grouping_mode = isinstance(args[-1], EllipsisMarker) or isinstance(
+            args[-2], EllipsisMarker
+        )
 
-        condition = args[-1] if len(args) >= 4 and not isinstance(args[-1], EllipsisMarker) else None  # noqa: PLR2004
+        condition = (
+            args[-1]
+            if len(args) >= 4 and not isinstance(args[-1], EllipsisMarker)
+            else None
+        )
 
         return ForObjectExpression(
             key_ident,
@@ -262,7 +268,7 @@ class ToAstTransformer(Transformer):
             key_expression,
             value_expression,
             condition,
-            grouping_mode
+            grouping_mode,
         )
 
     def heredoc_template(self, args: list[Any]) -> Literal:

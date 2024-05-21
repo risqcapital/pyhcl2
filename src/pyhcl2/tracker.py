@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import ItemsView, Iterator, Mapping, NoReturn, Self
+from typing import Any, ItemsView, Iterator, Mapping, NoReturn, Self
 
 from pyhcl2 import Block, Node
 from pyhcl2.eval import EvaluationScope, Evaluator
@@ -35,13 +35,13 @@ class VisitedVariablesTracker(Sequence, Mapping):
 
         return dirty_children
 
-    def __getitem__(self, key: any) -> Self:
+    def __getitem__(self, key: Any) -> Self:
         # When a key is accessed, we create a new child node to track the access
         child = VisitedVariablesTracker(key=str(key))
         self.children.append(child)
         return child
 
-    def __setitem__(self, key: any, value: any) -> None:
+    def __setitem__(self, key: Any, value: Any) -> None:
         # We don't actually store any values, so this is a no-op
         pass
 
@@ -61,7 +61,7 @@ class VisitedVariablesTracker(Sequence, Mapping):
         # Pretend to be a mapping of self to self
         return {self: self}.items()
 
-    def _not_implemented(self, *_args: any, **_kwargs: any) -> NoReturn:
+    def _not_implemented(self, *_args: Any, **_kwargs: Any) -> NoReturn:
         raise NotImplementedError
 
     __contains__ = _not_implemented
@@ -71,7 +71,7 @@ class VisitedVariablesTracker(Sequence, Mapping):
     keys = _not_implemented
     values = _not_implemented
 
-    def _return_self(self, *_args: any, **_kwargs: any) -> Self:
+    def _return_self(self, *_args: Any, **_kwargs: Any) -> Self:
         return self
 
     __add__ = _return_self
