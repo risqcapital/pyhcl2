@@ -4,6 +4,8 @@ repos:
     hooks:
       - id: poetry-check
       - id: poetry-lock
+        args:
+          - --no-update
       - id: poetry-install
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.3.3
@@ -11,3 +13,21 @@ repos:
       - id: ruff
         args: [ --fix ]
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: sh -c 'poetry install -qn --no-root && poetry run mypy .'
+        language: python
+        types: [python]
+        pass_filenames: false
+        additional_dependencies:
+          - poetry
+      - id: pytest
+        name: pytest
+        entry: sh -c 'poetry install -qn --no-root && poetry run pytest .'
+        language: python
+        types: [python]
+        pass_filenames: false
+        additional_dependencies:
+          - poetry
