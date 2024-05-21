@@ -49,7 +49,7 @@ def load_model_from_block(
     except ValidationError as e:
         exceptions: list[Exception] = []
 
-        for error in e.messages():  # type: ignore
+        for error in e.errors():
             field_key = list(block.key()) + [str(val) for val in error["loc"]]
             field_key_str = ".".join(field_key)
             match error["type"]:
