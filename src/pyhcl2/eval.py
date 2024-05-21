@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Iterable,
+    MutableMapping,
     Self,
     TypeAliasType,
     cast,
@@ -46,7 +47,7 @@ else:
 @dataclass
 class EvaluationScope:
     parent: Self | None = None
-    variables: dict[str, Value] = field(default_factory=dict)
+    variables: MutableMapping[str, Value] = field(default_factory=dict)
 
     def __getitem__(self, item: str) -> Value:
         try:

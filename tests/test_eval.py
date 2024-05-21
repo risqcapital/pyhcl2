@@ -23,16 +23,16 @@ def test_eval_literal_bool() -> None:
 
 
 def test_eval_literal_number() -> None:
-    assert eval_hcl("42") == 42  # noqa: PLR2004
-    assert eval_hcl("42.0") == 42.0  # noqa: PLR2004
-    assert eval_hcl("42.42") == 42.42  # noqa: PLR2004
+    assert eval_hcl("42") == 42
+    assert eval_hcl("42.0") == 42.0
+    assert eval_hcl("42.42") == 42.42
 
 
 def test_eval_identifier() -> None:
     with pytest.raises(ValueError):
         eval_hcl("foo")
 
-    assert eval_hcl("foo", foo=42) == 42  # noqa: PLR2004
+    assert eval_hcl("foo", foo=42) == 42
 
 
 def test_eval_identifier_parent_scope() -> None:
@@ -42,11 +42,11 @@ def test_eval_identifier_parent_scope() -> None:
             EvaluationScope(parent=EvaluationScope(variables={"foo": 42})),
         )
         == 42
-    )  # noqa: PLR2004
+    )
 
 
 def test_eval_unary_expr() -> None:
-    assert eval_hcl("-42") == -42  # noqa: PLR2004
+    assert eval_hcl("-42") == -42
     assert eval_hcl("!true") is False
     assert eval_hcl("!false") is True
 
@@ -64,11 +64,11 @@ def test_eval_binary_expr() -> None:
     assert eval_hcl("1 <= 2") is True
     assert eval_hcl("1 >= 1") is True
     assert eval_hcl("2 >= 1") is True
-    assert eval_hcl("5 - 3") == 2  # noqa: PLR2004
-    assert eval_hcl("3 + 5") == 8  # noqa: PLR2004
-    assert eval_hcl("2 * 3") == 6  # noqa: PLR2004
-    assert eval_hcl("6 / 3") == 2  # noqa: PLR2004
-    assert eval_hcl("5 % 3") == 2  # noqa: PLR2004
+    assert eval_hcl("5 - 3") == 2
+    assert eval_hcl("3 + 5") == 8
+    assert eval_hcl("2 * 3") == 6
+    assert eval_hcl("6 / 3") == 2
+    assert eval_hcl("5 % 3") == 2
     assert eval_hcl("true && true") is True
     assert eval_hcl("true && false") is False
     assert eval_hcl("false && true") is False
@@ -80,13 +80,13 @@ def test_eval_binary_expr() -> None:
 
 
 def test_eval_binary_precedence() -> None:
-    assert eval_hcl("1 + 2 * 3") == 7  # noqa: PLR2004
-    assert eval_hcl("1 * 2 + 3") == 5  # noqa: PLR2004
+    assert eval_hcl("1 + 2 * 3") == 7
+    assert eval_hcl("1 * 2 + 3") == 5
 
 
 def test_eval_conditional() -> None:
     assert eval_hcl("true ? 1 : 2") == 1
-    assert eval_hcl("false ? 1 : 2") == 2  # noqa: PLR2004
+    assert eval_hcl("false ? 1 : 2") == 2
 
 
 def test_eval_parenthesis() -> None:
@@ -117,7 +117,7 @@ def test_eval_get_attr() -> None:
     with pytest.raises(ValueError):
         eval_hcl('{"foo": {"bar": "baz"}}.foo.baz')
 
-    assert eval_hcl("[1,2,3].1") == 2  # noqa: PLR2004
+    assert eval_hcl("[1,2,3].1") == 2
     with pytest.raises(ValueError):
         eval_hcl("[1,2,3].3")
 
