@@ -1,77 +1,16 @@
 from __future__ import annotations
 
 import dataclasses
-import textwrap
 import typing as t
 from dataclasses import dataclass
 from functools import cached_property
-from typing import cast
-
-import termcolor
 
 LiteralValue = None | bool | int | float | str
 
 
-def _no_color(text: str, *_args: any, **_kwargs: any) -> str:
-    return text
-
-
-def pformat(value: LiteralValue | Node, colored: bool = False) -> str:
-    _ = termcolor.colored if colored else _no_color
-    if isinstance(value, Node):
-        return value.pformat(colored)
-    if isinstance(value, str):
-        return cast(str, _(repr(value), "yellow"))
-    else:
-        return cast(str, _(repr(value), "cyan"))
-
-
-def pformat_list(values: list[Expression], colored: bool = False) -> str:
-    result = ""
-    if values:
-        for value in values:
-            result += "\n" + textwrap.indent(pformat(value, colored), "  ") + ","
-        result += "\n"
-    return result
-
-
-def indent_but_first_line(text: str, indent: str) -> str:
-    lines = text.splitlines()
-    if not lines:
-        return ""
-    return lines[0] + "\n" + textwrap.indent("\n".join(lines[1:]), indent)
-
-
+@dataclass(frozen=True, eq=True)
 class Node:
     """Base class for HCL2 AST nodes."""
-
-    def pformat_field(self, field_name: str, colored: bool) -> str:
-        value = getattr(self, field_name)
-        if isinstance(value, Expression):
-            formatted = value.pformat(colored)
-        elif isinstance(value, list):
-            formatted = f"[{pformat_list(value, colored)}]"
-        else:
-            formatted = pformat(value, colored)
-        return formatted
-
-    def pformat(self, colored: bool = True) -> str:
-        _ = termcolor.colored if colored else _no_color
-        args = []
-        # noinspection PyDataclass
-        fields = dataclasses.fields(self)
-        for field in fields:
-            args.append(
-                _(field.name, "cyan") + "=" + self.pformat_field(field.name, colored)
-            )
-        if any("\n" in arg for arg in args) and len(args) > 1:
-            sep = ",\n"
-            args_string = (
-                f'(\n{sep.join(textwrap.indent(arg, "  ") for arg in args)}\n)'
-            )
-        else:
-            args_string = f'({", ".join(args)})'
-        return f"{_(type(self).__name__, 'blue')}{args_string}"
 
 
 class Expression(Node):
@@ -85,10 +24,6 @@ class Literal(Expression):
     def __post_init__(self) -> None:
         assert isinstance(self.value, (type(None), bool, int, float, str)), self.value
 
-    # def pformat(self, colored: bool = True) -> str:
-    #     _ = termcolor.colored if colored else _no_color
-    #     return _(repr(self.value), "cyan")
-
 
 @dataclass(frozen=True, eq=True)
 class Array(Expression):
@@ -99,24 +34,10 @@ class Array(Expression):
 class Object(Expression):
     fields: dict[Expression, Expression]
 
-    def pformat_field(self, field_name: str, colored: bool) -> str:
-        if field_name == "fields":
-            if not self.fields:
-                return "{}"
-            result = "{"
-            for key, value in self.fields.items():
-                result += f'\n  {pformat(key)}: {indent_but_first_line(value.pformat(colored), "  ")}'
-            return result + "}"
-        return super().pformat_field(field_name, colored)
-
 
 @dataclass(frozen=True, eq=True)
 class Identifier(Expression):
     name: str
-
-    # def pformat(self, colored: bool = True) -> str:
-    #     _ = termcolor.colored if colored else _no_color
-    #     return _(self.name, "yellow")
 
 
 @dataclass(frozen=True, eq=True)
@@ -175,10 +96,6 @@ class BinaryOp(Expression):
     left: Expression
     right: Expression
 
-    # def pformat(self, colored: bool = True) -> str:
-    #     _ = termcolor.colored if colored else _no_color
-    #     return f"({self.left.pformat(colored)} {self.op} {self.right.pformat(colored)})"
-
 
 @dataclass(frozen=True, eq=True)
 class Conditional(Expression):
@@ -186,18 +103,10 @@ class Conditional(Expression):
     then_expr: Expression
     else_expr: Expression
 
-    # def pformat(self, colored: bool = True) -> str:
-    #     _ = termcolor.colored if colored else _no_color
-    #     return f"({self.cond.pformat(colored)} ? {self.then_expr.pformat(colored)} : {self.else_expr.pformat(colored)})"
-
 
 @dataclass(frozen=True, eq=True)
 class Parenthesis(Expression):
     expr: Expression
-
-    # def pformat(self, colored: bool = True) -> str:
-    #     _ = termcolor.colored if colored else _no_color
-    #     return f"({self.expr.pformat(colored)})"
 
 
 @dataclass(frozen=True, eq=True)
@@ -223,15 +132,19 @@ class ForObjectExpression(Expression):
 class Stmt(Node):
     """Base class for nodes that represent statements in HCL2."""
 
+    @property
+    def key_path(self) -> tuple[str, ...]:
+        raise NotImplementedError()
+
 
 @dataclass(frozen=True, eq=True)
 class Attribute(Stmt):
     key: str
     value: Expression
 
-    # def pformat(self, colored: bool = True) -> str:
-    #     _ = termcolor.colored if colored else _no_color
-    #     return f"{_(self.key, 'yellow')} = {self.value.pformat(colored)}"
+    @property
+    def key_path(self) -> tuple[str, ...]:
+        return (self.key,)
 
 
 @dataclass(frozen=True, eq=True)
@@ -240,18 +153,18 @@ class Block(Stmt):
     labels: list[Literal | Identifier]
     body: list[Stmt]
 
+    @property
+    def key_path(self) -> tuple[str, ...]:
+        key_parts: list[str] = [self.type]
+        for label in self.labels:
+            if isinstance(label, Identifier):
+                key_parts.append(label.name)
+            elif isinstance(label, Literal) and isinstance(label.value, str):
+                key_parts.append(label.value)
+        return tuple(key_parts)
+
     def key(self) -> tuple[str, ...]:
-        return tuple(
-            [self.type]
-            + [
-                label.name
-                if isinstance(label, Identifier)
-                else label.value
-                if isinstance(label, Literal)
-                else None
-                for label in self.labels
-            ]
-        )
+        return self.key_path
 
     @cached_property
     def attributes(self) -> dict[str, Expression]:
