@@ -49,11 +49,11 @@ class VisitedVariablesTracker(Sequence, MutableMapping, Iterable):
         self.children.append(child)
         return child
 
-    def __setitem__(self, key: Any, value: Any) -> None:
+    def __setitem__(self, key: Any, value: Any) -> None:  # noqa: ANN401
         # We don't actually store any values, so this is a no-op
         pass
 
-    def __delitem__(self, key: Any) -> None:
+    def __delitem__(self, key: Any) -> None:  # noqa: ANN401
         # We don't actually store any values, so this is a no-op
         pass
 
@@ -73,7 +73,7 @@ class VisitedVariablesTracker(Sequence, MutableMapping, Iterable):
         # Pretend to be a mapping of self to self
         return {self: self}.items()
 
-    def _not_implemented(self, *_args: Any, **_kwargs: Any) -> NoReturn:
+    def _not_implemented(self, *_args: Any, **_kwargs: Any) -> NoReturn:  # noqa: ANN401
         raise NotImplementedError
 
     __contains__ = _not_implemented
@@ -83,7 +83,7 @@ class VisitedVariablesTracker(Sequence, MutableMapping, Iterable):
     keys = _not_implemented
     values = _not_implemented
 
-    def _return_self(self, *_args: Any, **_kwargs: Any) -> Self:
+    def _return_self(self, *_args: Any, **_kwargs: Any) -> Self:  # noqa: ANN401
         return self
 
     __add__ = _return_self

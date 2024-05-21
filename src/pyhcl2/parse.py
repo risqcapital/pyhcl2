@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import typing as t
-from pathlib import Path
 
 from lark import Lark
 
 from pyhcl2._ast import Attribute, Expression, Module, Node, Stmt
 from pyhcl2.transformer import ToAstTransformer
-
-PARSER_FILE = Path(__file__).absolute().resolve().parent / ".lark_cache.bin"
 
 
 def parse_file(file: t.TextIO) -> Module:
@@ -20,9 +17,7 @@ def parse_string(text: str, start: str) -> Node:
         "hcl2.lark",
         parser="lalr",
         start=start,
-        cache=str(PARSER_FILE)
-        + "."
-        + start,  # Disable/Delete file to effect changes to the grammar
+        cache=True,
         rel_to=__file__,
         propagate_positions=True,
         transformer=ToAstTransformer(),
