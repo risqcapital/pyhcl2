@@ -17,7 +17,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: sh -c 'poetry install -qn --no-root && poetry run mypy .'
+        entry: sh -c 'poetry install -qn && poetry run mypy .'
         language: python
         types: [python]
         pass_filenames: false
@@ -25,7 +25,7 @@ repos:
           - poetry
       - id: pytest
         name: pytest
-        entry: sh -c 'poetry install -qn --no-root && poetry run pytest .'
+        entry: sh -c 'poetry install -qn && poetry run pytest .'
         language: python
         types: [python]
         pass_filenames: false

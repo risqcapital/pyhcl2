@@ -3,16 +3,24 @@ from __future__ import annotations
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, ItemsView, Iterator, Mapping, NoReturn, Self
+from typing import (
+    Any,
+    ItemsView,
+    Iterable,
+    Iterator,
+    MutableMapping,
+    NoReturn,
+    Self,
+)
 
 from pyhcl2 import Block, Node
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_file
 
 
-class VisitedVariablesTracker(Sequence, Mapping):
+class VisitedVariablesTracker(Sequence, MutableMapping, Iterable):
     key: str | None
-    children: list[Self]
+    children: list[VisitedVariablesTracker]
 
     def __init__(self, key: str | None = None) -> None:
         self.key = key
@@ -35,13 +43,17 @@ class VisitedVariablesTracker(Sequence, Mapping):
 
         return dirty_children
 
-    def __getitem__(self, key: Any) -> Self:
+    def __getitem__(self, key: Any) -> VisitedVariablesTracker:  # noqa: ANN401
         # When a key is accessed, we create a new child node to track the access
         child = VisitedVariablesTracker(key=str(key))
         self.children.append(child)
         return child
 
     def __setitem__(self, key: Any, value: Any) -> None:
+        # We don't actually store any values, so this is a no-op
+        pass
+
+    def __delitem__(self, key: Any) -> None:
         # We don't actually store any values, so this is a no-op
         pass
 
@@ -67,7 +79,7 @@ class VisitedVariablesTracker(Sequence, Mapping):
     __contains__ = _not_implemented
     index = _not_implemented
     count = _not_implemented
-    get = _not_implemented
+    get = _not_implemented  # type: ignore
     keys = _not_implemented
     values = _not_implemented
 
@@ -79,8 +91,8 @@ class VisitedVariablesTracker(Sequence, Mapping):
     __mul__ = _return_self
     __truediv__ = _return_self
     __mod__ = _return_self
-    __eq__ = _return_self
-    __ne__ = _return_self
+    __eq__ = _return_self  # type: ignore
+    __ne__ = _return_self  # type: ignore
     __lt__ = _return_self
     __gt__ = _return_self
     __le__ = _return_self
@@ -88,7 +100,7 @@ class VisitedVariablesTracker(Sequence, Mapping):
     __and__ = _return_self
     __or__ = _return_self
     __neg__ = _return_self
-    __reversed__ = _return_self
+    __reversed__ = _return_self  # type: ignore
 
 
 def resolve_variable_references(node: Node) -> set[tuple[str, ...]]:

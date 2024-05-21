@@ -5,6 +5,7 @@ import sys
 from typing import Any
 
 from lark import Discard, Token, Transformer
+from lark.visitors import _DiscardType
 
 from pyhcl2._ast import (
     Array,
@@ -103,7 +104,7 @@ class ToAstTransformer(Transformer):
         return Literal(int("".join([str(arg) for arg in args])))
 
     #
-    def expr_term(self, args: list[Any]) -> Any:
+    def expr_term(self, args: list[Any]) -> Any:  # noqa: ANN401
         args = self.strip_new_line_tokens(args)
         # print("expr_term", args)
         return args[0]
@@ -128,6 +129,7 @@ class ToAstTransformer(Transformer):
     def attribute(self, args: list[Expression]) -> Attribute:
         args = self.strip_new_line_tokens(args)
         # print("attribute", args)
+        assert isinstance(args[0], Identifier)
         return Attribute(args[0].name, args[1])
 
     def body(self, args: list[Any]) -> list[Any]:
@@ -166,7 +168,9 @@ class ToAstTransformer(Transformer):
 
         return FunctionCall(args[0], arguments, var_args)
 
-    def arguments(self, args: list[Expression | EllipsisMarker]) -> list[Expression]:
+    def arguments(
+        self, args: list[Expression | EllipsisMarker]
+    ) -> list[Expression | EllipsisMarker]:
         args = self.strip_new_line_tokens(args)
         # print("arguments", args)
         return args
@@ -200,10 +204,10 @@ class ToAstTransformer(Transformer):
         # print("full_splat_expr_term", args)
         return IndexSplat(*args)
 
-    def new_line_or_comment(self, _args: list) -> Discard:
+    def new_line_or_comment(self, _args: list) -> _DiscardType:
         return Discard
 
-    def new_line_and_or_comma(self, _args: list) -> Discard:
+    def new_line_and_or_comma(self, _args: list) -> _DiscardType:
         return Discard
 
     def start(self, args: list) -> dict:
@@ -231,10 +235,10 @@ class ToAstTransformer(Transformer):
         # print("for_tuple_expr", args)
         for_intro = args[0]
         value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
-        key_ident = for_intro[0] if len(for_intro) == 3 else None  # noqa: PLR2004
+        key_ident = for_intro[0] if len(for_intro) == 3 else None
         collection = for_intro[-1]
         expression = args[1]
-        condition = args[2] if len(args) == 3 else None  # noqa: PLR2004
+        condition = args[2] if len(args) == 3 else None
 
         return ForTupleExpression(
             key_ident, value_ident, collection, expression, condition
@@ -246,7 +250,7 @@ class ToAstTransformer(Transformer):
         print("for_object_expression", args)
         for_intro = args[0]
         value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
-        key_ident = for_intro[0] if len(for_intro) == 3 else None  # noqa: PLR2004
+        key_ident = for_intro[0] if len(for_intro) == 3 else None
         collection = for_intro[-1]
         key_expression = args[1]
         value_expression = args[2]

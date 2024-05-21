@@ -49,6 +49,7 @@ extend-ignore=[
     "ANN101",
     "ERA001",
     "TRY003",
+    "PLR2004"
 ]
 
 [tool.mypy]

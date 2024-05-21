@@ -12,10 +12,10 @@ Model = TypeVar("Model", bound=BaseModel)
 
 
 def load_model_from_block(
-        block: Block,
-        model_cls: type[Model],
-        evaluator: Evaluator = Evaluator(),
-        scope: EvaluationScope = EvaluationScope(),
+    block: Block,
+    model_cls: type[Model],
+    evaluator: Evaluator = Evaluator(),
+    scope: EvaluationScope = EvaluationScope(),
 ) -> Model:
     field_keys = list(model_cls.model_fields.keys())
     field_values: dict[str, Any] = {}
@@ -54,13 +54,21 @@ def load_model_from_block(
             field_key_str = ".".join(field_key)
             match error["type"]:
                 case "missing":
-                    exceptions.append(HCLModelValidationError(f"Missing required field {field_key_str}"))
+                    exceptions.append(
+                        HCLModelValidationError(
+                            f"Missing required field {field_key_str}"
+                        )
+                    )
                 case "too_long":
                     exceptions.append(
-                        HCLModelValidationError(f"{field_key_str} should be at most {error['ctx']['max_length']} item but was {error['ctx']['actual_length']}")
+                        HCLModelValidationError(
+                            f"{field_key_str} should be at most {error['ctx']['max_length']} item but was {error['ctx']['actual_length']}"
+                        )
                     )
                 case _:
-                    exceptions.append(HCLModelValidationError(f"Unhandled pydantic error: {error}"))
+                    exceptions.append(
+                        HCLModelValidationError(f"Unhandled pydantic error: {error}")
+                    )
         raise HclExceptionGroup("Failed to validate hcl model", exceptions)
     else:
         return model
