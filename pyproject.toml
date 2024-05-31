@@ -22,9 +22,9 @@ python = ">= 3.10, < 4"
 termcolor = "^2.4.0"
 lark = "^1.1.9"
 networkx = "^3.3"
+pydantic = "^2.7.2"
 
 [tool.poetry.group.dev.dependencies]
-pydantic = "^2.7.2"
 pytest = "^8.1.1"
 ruff = "*"
 types-dataclasses = "^0.6.5"
