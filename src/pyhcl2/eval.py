@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Iterable,
     MutableMapping,
     Self,
@@ -80,6 +81,9 @@ camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 class Evaluator:
     # Note: We MUST not short-circuit if self.can_short_circuit is False
     can_short_circuit: bool = True
+    intrinsic_functions: Mapping[str, Callable[..., Value]] = field(
+        default_factory=dict
+    )
 
     def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:
         method = (
@@ -236,8 +240,16 @@ class Evaluator:
     def _eval_array(self, node: Array, scope: EvaluationScope) -> Value:
         return [self.eval(item, scope) for item in node.values]
 
-    def _eval_function_call(self, node: FunctionCall, scope: EvaluationScope) -> Value:
-        raise NotImplementedError("Function calls are not supported yet")
+    def _eval_function_call(self, func: FunctionCall, scope: EvaluationScope) -> Value:
+        if func.var_args:
+            raise NotImplementedError("Var arg function calls are not supported yet")
+
+        if func.ident.name in self.intrinsic_functions:
+            return self.intrinsic_functions[func.ident.name](
+                *[self.eval(arg, scope) for arg in func.args]
+            )
+
+        raise NotImplementedError(f"Unsupported function call {func.ident.name}")
 
     def _eval_conditional(self, node: Conditional, scope: EvaluationScope) -> Value:
         condition = self.eval(node.cond, scope)
