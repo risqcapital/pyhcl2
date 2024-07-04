@@ -40,9 +40,9 @@ from pyhcl2._ast import (
 
 if TYPE_CHECKING:
     # Mypy doesn't properly support TypeAliasType yet
-    Value = LiteralValue | dict[str, "Value"] | list["Value"]
+    Value = LiteralValue | Mapping[str, "Value"] | Sequence["Value"]
 else:
-    Value = TypeAliasType("Value", LiteralValue | dict[str, "Value"] | list["Value"])
+    Value = TypeAliasType("Value", LiteralValue | Mapping[str, "Value"] | Sequence["Value"])
 
 
 @dataclass
@@ -193,6 +193,10 @@ class Evaluator:
         self, on: Value, key: GetIndexKey, scope: EvaluationScope
     ) -> Value:
         key_value = self.eval(key.expr, scope)
+
+        # TODO: Figure out a better way to handle this
+        if str(key_value.__class__.__name__) == "VisitedVariablesTracker":
+            return None
 
         try:
             if isinstance(on, Mapping):
