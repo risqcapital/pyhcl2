@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/risqcapital/pyhcl2/compare/v0.1.0...v0.2.0) (2024-07-04)
+
+
+### Features
+
+* Evaluate intrinsic function calls ([#16](https://github.com/risqcapital/pyhcl2/issues/16)) ([67cd08f](https://github.com/risqcapital/pyhcl2/commit/67cd08f0a917648ed9faf2f8b3c6f45057b1043a))
+
 ## 0.1.0 (2024-05-31)
 
 
