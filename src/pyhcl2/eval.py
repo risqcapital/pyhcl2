@@ -42,7 +42,9 @@ if TYPE_CHECKING:
     # Mypy doesn't properly support TypeAliasType yet
     Value = LiteralValue | Mapping[str, "Value"] | Sequence["Value"]
 else:
-    Value = TypeAliasType("Value", LiteralValue | Mapping[str, "Value"] | Sequence["Value"])
+    Value = TypeAliasType(
+        "Value", LiteralValue | Mapping[str, "Value"] | Sequence["Value"]
+    )
 
 
 @dataclass
