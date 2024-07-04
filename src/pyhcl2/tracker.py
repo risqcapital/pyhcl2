@@ -5,9 +5,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     ItemsView,
     Iterable,
     Iterator,
+    Mapping,
     MutableMapping,
     NoReturn,
     Self,
@@ -16,6 +18,23 @@ from typing import (
 from pyhcl2 import Block, Node
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_file
+
+
+class IntrinsicFunctionTracker(Mapping):
+    def __getattr__(self, item: str) -> Callable[..., None]:
+        return lambda *args: None
+
+    def __getitem__(self, item: str) -> Callable[..., None]:
+        return lambda *args: None
+
+    def __contains__(self, item: object) -> bool:
+        return True
+
+    def __iter__(self) -> Iterator[Self]:
+        return iter(())
+
+    def __len__(self) -> int:
+        return 0
 
 
 class VisitedVariablesTracker(Sequence, MutableMapping, Iterable):
@@ -107,7 +126,9 @@ def resolve_variable_references(node: Node) -> set[tuple[str, ...]]:
     visited_variables_tracker = VisitedVariablesTracker()
     # noinspection PyTypeChecker
     scope = EvaluationScope(variables=visited_variables_tracker)
-    Evaluator(can_short_circuit=False).eval(node, scope)
+    Evaluator(
+        can_short_circuit=False, intrinsic_functions=IntrinsicFunctionTracker()
+    ).eval(node, scope)
 
     return visited_variables_tracker.get_visited_variables()
 
