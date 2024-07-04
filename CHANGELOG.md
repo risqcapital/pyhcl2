@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/risqcapital/pyhcl2/compare/v0.2.0...v0.2.1) (2024-07-04)
+
+
+### Bug Fixes
+
+* Hack around VisitedVariablesTracker on get index ([#18](https://github.com/risqcapital/pyhcl2/issues/18)) ([58582a7](https://github.com/risqcapital/pyhcl2/commit/58582a75d3ffb3d79c97899bdea3914b710ea5a6))
+
 ## [0.2.0](https://github.com/risqcapital/pyhcl2/compare/v0.1.0...v0.2.0) (2024-07-04)
 
 
