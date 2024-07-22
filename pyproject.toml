@@ -25,7 +25,7 @@ networkx = "^3.3"
 pydantic = "^2.7.2"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
+pytest = "^8.3.1"
 ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
