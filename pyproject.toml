@@ -20,7 +20,7 @@ Repository = "https://github.com/risqcapital/pyhcl2"
 [tool.poetry.dependencies]
 python = ">= 3.10, < 4"
 termcolor = "^2.4.0"
-lark = "^1.1.9"
+lark = "^1.2.2"
 networkx = "^3.3"
 pydantic = "^2.7.2"
 
