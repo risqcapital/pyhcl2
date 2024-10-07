@@ -87,9 +87,6 @@ class IndexSplat(Expression):
 class UnaryOperator(Node):
     type: t.Literal["-", "!"]
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield Segment(self.type)
-
 @dataclass(frozen=True, eq=True)
 class UnaryExpression(Expression):
     op: UnaryOperator
