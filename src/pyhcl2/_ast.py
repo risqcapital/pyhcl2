@@ -86,6 +86,7 @@ class IndexSplat(Expression):
     on: Expression
     keys: list[GetAttrKey | GetIndexKey] = dataclasses.field(default_factory=list)
 
+
 @dataclass(frozen=True, eq=True)
 class UnaryOperator(Node):
     type: t.Literal["-", "!"]
