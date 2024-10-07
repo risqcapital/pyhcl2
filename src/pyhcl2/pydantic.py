@@ -10,7 +10,7 @@ from pyhcl2.exceptions import HclExceptionGroup, HCLModelValidationError
 
 Model = TypeVar("Model", bound=BaseModel)
 
-
+# ruff: noqa: PLR0912
 def load_model_from_block(
     block: Block,
     model_cls: type[Model],
