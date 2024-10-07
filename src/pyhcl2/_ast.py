@@ -83,15 +83,6 @@ class IndexSplat(Expression):
     on: Expression
     keys: list[GetAttrKey | GetIndexKey] = dataclasses.field(default_factory=list)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield self.on
-        yield Segment("[*]")
-        for key in self.keys:
-            if isinstance(key, GetAttrKey):
-                yield key
-            else:
-                yield key
-
 @dataclass(frozen=True, eq=True)
 class UnaryOperator(Node):
     type: t.Literal["-", "!"]
