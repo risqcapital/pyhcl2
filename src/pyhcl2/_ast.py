@@ -92,16 +92,9 @@ class UnaryExpression(Expression):
     op: UnaryOperator
     expr: Expression
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield self.op
-        yield self.expr
-
 @dataclass(frozen=True, eq=True)
 class BinaryOperator(Node):
     type: t.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield Segment(self.type)
 
 @dataclass(frozen=True, eq=True)
 class BinaryExpression(Expression):
@@ -158,11 +151,6 @@ class Attribute(Stmt):
     @property
     def key_path(self) -> tuple[str, ...]:
         return (self.key.name,)
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield Segment(self.key.name, style=STYLE_PROPERTY_NAME)
-        yield Segment(" = ")
-        yield self.value
 
 
 @dataclass(frozen=True, eq=True)
