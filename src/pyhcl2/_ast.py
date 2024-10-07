@@ -7,15 +7,18 @@ from functools import cached_property
 
 LiteralValue = None | bool | int | float | str
 
+
 @dataclass(frozen=True, eq=True, kw_only=True)
 class Node:
     """Base class for HCL2 AST nodes."""
+
     start_pos: int | None = None
     end_pos: int | None = None
 
 
 class Expression(Node):
     """Base class for nodes that represent expressions in HCL2."""
+
 
 @dataclass(frozen=True, eq=True)
 class Literal(Expression):
@@ -94,7 +97,9 @@ class UnaryExpression(Expression):
 
 @dataclass(frozen=True, eq=True)
 class BinaryOperator(Node):
-    type: t.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
+    type: t.Literal[
+        "==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"
+    ]
 
 @dataclass(frozen=True, eq=True)
 class BinaryExpression(Expression):
@@ -175,7 +180,9 @@ class Block(Stmt):
     @cached_property
     def attributes(self) -> dict[str, Expression]:
         return {
-            stmt.key.name: stmt.value for stmt in self.body if isinstance(stmt, Attribute)
+            stmt.key.name: stmt.value
+            for stmt in self.body
+            if isinstance(stmt, Attribute)
         }
 
     @cached_property

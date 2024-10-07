@@ -28,7 +28,11 @@ def parse_string(text: str, start: str) -> Node:
 
 
 def parse_module(text: str) -> Module:
-    return Module(t.cast(list[Stmt], parse_string(text, start="start")), start_pos=0, end_pos=len(text))
+    return Module(
+        t.cast(list[Stmt], parse_string(text, start="start")),
+        start_pos=0,
+        end_pos=len(text),
+    )
 
 
 def parse_expr(text: str) -> Expression:

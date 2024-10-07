@@ -47,9 +47,7 @@ class EllipsisMarker:
 class ToAstTransformer(Transformer):
     def __binary_op(self, args: list[Token]) -> BinaryOperator:
         return BinaryOperator(
-            type=args[0].value,
-            start_pos=args[0].start_pos,
-            end_pos=args[0].end_pos
+            type=args[0].value, start_pos=args[0].start_pos, end_pos=args[0].end_pos
         )
 
     add_op = __binary_op
@@ -62,9 +60,11 @@ class ToAstTransformer(Transformer):
     def __binary_expression(self, args: list[Any]) -> BinaryExpression:
         args = self.strip_new_line_tokens(args)
         return BinaryExpression(
-            args[1], args[0], args[2],
+            args[1],
+            args[0],
+            args[2],
             start_pos=args[0].start_pos,
-            end_pos=args[2].end_pos
+            end_pos=args[2].end_pos,
         )
 
     term = __binary_expression
@@ -76,9 +76,7 @@ class ToAstTransformer(Transformer):
 
     def __unary_op(self, args: list[Token]) -> UnaryOperator:
         return UnaryOperator(
-            type=args[0].value,
-            start_pos=args[0].start_pos,
-            end_pos=args[0].end_pos
+            type=args[0].value, start_pos=args[0].start_pos, end_pos=args[0].end_pos
         )
 
     not_op = __unary_op
@@ -87,9 +85,7 @@ class ToAstTransformer(Transformer):
     def __unary_expression(self, args: list[Any]) -> UnaryExpression:
         args = self.strip_new_line_tokens(args)
         return UnaryExpression(
-            args[0], args[1],
-            start_pos=args[0].start_pos,
-            end_pos=args[1].end_pos
+            args[0], args[1], start_pos=args[0].start_pos, end_pos=args[1].end_pos
         )
 
     not_test = __unary_expression
@@ -97,47 +93,39 @@ class ToAstTransformer(Transformer):
 
     def conditional(self, args: list[Any]) -> Conditional:
         return Conditional(
-            args[0], args[1], args[2],
+            args[0],
+            args[1],
+            args[2],
             start_pos=args[0].start_pos,
-            end_pos=args[2].end_pos
+            end_pos=args[2].end_pos,
         )
 
     @v_args(meta=True)
     def get_attr(self, meta: Meta, args: list[Any]) -> GetAttrKey:
-        return GetAttrKey(
-            args[0],
-            start_pos=meta.start_pos,
-            end_pos=meta.end_pos
-        )
+        return GetAttrKey(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def get_attr_expr_term(self, args: list[Any]) -> GetAttr:
         get_attr: GetAttrKey = args[1]
         return GetAttr(
-            args[0], get_attr,
-            start_pos=args[0].start_pos,
-            end_pos=get_attr.end_pos
+            args[0], get_attr, start_pos=args[0].start_pos, end_pos=get_attr.end_pos
         )
 
     def float_lit(self, args: list[Token]) -> Literal:
         return Literal(
             float("".join([str(arg) for arg in args])),
-            start_pos = args[0].start_pos,
-            end_pos = args[-1].end_pos
+            start_pos=args[0].start_pos,
+            end_pos=args[-1].end_pos,
         )
 
     @v_args(meta=True, inline=True)
     def null_lit(self, meta: Meta) -> Literal:
-        return Literal(
-            None,
-            start_pos = meta.start_pos,
-            end_pos = meta.end_pos
-        )
+        return Literal(None, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def int_lit(self, args: list[Token]) -> Literal:
         return Literal(
             int("".join([str(arg) for arg in args])),
-            start_pos = args[0].start_pos,
-            end_pos = args[-1].end_pos
+            start_pos=args[0].start_pos,
+            end_pos=args[-1].end_pos,
         )
 
     #
@@ -148,32 +136,30 @@ class ToAstTransformer(Transformer):
     def bool_lit(self, value: list[Token]) -> Literal:
         match value[0].value.lower():
             case "true":
-                return Literal(True, start_pos=value[0].start_pos, end_pos=value[0].end_pos)
+                return Literal(
+                    True, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                )
             case "false":
-                return Literal(False, start_pos=value[0].start_pos, end_pos=value[0].end_pos)
+                return Literal(
+                    False, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                )
         raise ValueError(f"Invalid boolean value: {value[0].value}")
 
     def string_lit(self, value: list[Token]) -> Literal:
         return Literal(
-            value[0].value[1:-1],
-            start_pos=value[0].start_pos,
-            end_pos=value[0].end_pos
+            value[0].value[1:-1], start_pos=value[0].start_pos, end_pos=value[0].end_pos
         )
 
     def identifier(self, value: list[Token]) -> Expression:
         return Identifier(
-            value[0].value,
-            start_pos=value[0].start_pos,
-            end_pos=value[0].end_pos
+            value[0].value, start_pos=value[0].start_pos, end_pos=value[0].end_pos
         )
 
     def attribute(self, args: list[Expression]) -> Attribute:
         args = self.strip_new_line_tokens(args)
         assert isinstance(args[0], Identifier)
         return Attribute(
-            args[0], args[1],
-            start_pos=args[0].start_pos,
-            end_pos=args[1].end_pos
+            args[0], args[1], start_pos=args[0].start_pos, end_pos=args[1].end_pos
         )
 
     def body(self, args: list[Any]) -> list[Any]:
@@ -183,8 +169,11 @@ class ToAstTransformer(Transformer):
     def block(self, meta: Meta, args: list[Any]) -> Block:
         args = self.strip_new_line_tokens(args)
         return Block(
-            args[0], args[1:-1], args[-1],
-            start_pos=meta.start_pos, end_pos=meta.end_pos
+            args[0],
+            args[1:-1],
+            args[-1],
+            start_pos=meta.start_pos,
+            end_pos=meta.end_pos,
         )
 
     @v_args(meta=True)
@@ -216,8 +205,7 @@ class ToAstTransformer(Transformer):
             var_args = True
 
         return FunctionCall(
-            args[0], arguments, var_args,
-            start_pos=meta.start_pos, end_pos=meta.end_pos
+            args[0], arguments, var_args, start_pos=meta.start_pos, end_pos=meta.end_pos
         )
 
     def arguments(
@@ -243,22 +231,14 @@ class ToAstTransformer(Transformer):
 
     @v_args(meta=True)
     def attr_splat_expr_term(self, meta: Meta, args: list[Any]) -> AttrSplat:
-        return AttrSplat(
-            *args,
-            start_pos=meta.start_pos,
-            end_pos=meta.end_pos
-        )
+        return AttrSplat(*args, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def full_splat(self, args: list[Any]) -> list[Any]:
         return args
 
     @v_args(meta=True)
     def full_splat_expr_term(self, meta: Meta, args: list[Any]) -> IndexSplat:
-        return IndexSplat(
-            *args,
-            start_pos=meta.start_pos,
-            end_pos=meta.end_pos
-        )
+        return IndexSplat(*args, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def new_line_or_comment(self, _args: list) -> _DiscardType:
         return Discard
@@ -295,8 +275,13 @@ class ToAstTransformer(Transformer):
         condition = args[2] if len(args) == 3 else None
 
         return ForTupleExpression(
-            key_ident, value_ident, collection, expression, condition,
-            start_pos=meta.start_pos, end_pos=meta.end_pos
+            key_ident,
+            value_ident,
+            collection,
+            expression,
+            condition,
+            start_pos=meta.start_pos,
+            end_pos=meta.end_pos,
         )
 
     # noinspection DuplicatedCode
@@ -337,7 +322,9 @@ class ToAstTransformer(Transformer):
         match = HEREDOC_PATTERN.match(str(args[0]))
         if not match:
             raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
-        return Literal(f'"{match.group(2)}"', start_pos=meta.start_pos, end_pos=meta.end_pos)
+        return Literal(
+            f'"{match.group(2)}"', start_pos=meta.start_pos, end_pos=meta.end_pos
+        )
 
     @v_args(meta=True)
     def heredoc_template_trim(self, meta: Meta, args: list[Any]) -> Literal:
@@ -357,4 +344,6 @@ class ToAstTransformer(Transformer):
         # trim off that number of leading spaces from each line
         lines = [line[min_spaces:] for line in lines]
 
-        return Literal(f'"{"\n".join(lines)}"', start_pos=meta.start_pos, end_pos=meta.end_pos)
+        return Literal(
+            f'"{"\n".join(lines)}"', start_pos=meta.start_pos, end_pos=meta.end_pos
+        )

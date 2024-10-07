@@ -126,7 +126,9 @@ class Evaluator:
         scope[node.key.name] = value
         return value
 
-    def _eval_binary_expression(self, node: BinaryExpression, scope: EvaluationScope) -> Value:
+    def _eval_binary_expression(
+        self, node: BinaryExpression, scope: EvaluationScope
+    ) -> Value:
         # Note: We MUST not short-circuit if self.can_short_circuit is False
         # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
         left = self.eval(node.left, scope)
@@ -155,7 +157,9 @@ class Evaluator:
             assert isinstance(operation, str)
             return getattr(left, operation)(right)
 
-    def _eval_unary_expression(self, node: UnaryExpression, scope: EvaluationScope) -> Value:
+    def _eval_unary_expression(
+        self, node: UnaryExpression, scope: EvaluationScope
+    ) -> Value:
         value = self.eval(node.expr, scope)
 
         operations = {
