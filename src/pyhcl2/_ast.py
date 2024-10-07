@@ -7,8 +7,8 @@ from functools import cached_property
 
 LiteralValue = None | bool | int | float | str
 
-class Node:
 @dataclass(frozen=True, eq=True, kw_only=True)
+class Node:
     """Base class for HCL2 AST nodes."""
     start_pos: int | None = None
     end_pos: int | None = None
@@ -83,21 +83,37 @@ class IndexSplat(Expression):
     on: Expression
     keys: list[GetAttrKey | GetIndexKey] = dataclasses.field(default_factory=list)
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield self.on
+        yield Segment("[*]")
+        for key in self.keys:
+            if isinstance(key, GetAttrKey):
+                yield key
+            else:
+                yield key
 
 @dataclass(frozen=True, eq=True)
 class UnaryOperator(Node):
     type: t.Literal["-", "!"]
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield Segment(self.type)
 
 @dataclass(frozen=True, eq=True)
 class UnaryExpression(Expression):
     op: UnaryOperator
     expr: Expression
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield self.op
+        yield self.expr
+
 @dataclass(frozen=True, eq=True)
 class BinaryOperator(Node):
     type: t.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield Segment(self.type)
 
 @dataclass(frozen=True, eq=True)
 class BinaryExpression(Expression):
@@ -154,6 +170,11 @@ class Attribute(Stmt):
     @property
     def key_path(self) -> tuple[str, ...]:
         return (self.key.name,)
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield Segment(self.key.name, style=STYLE_PROPERTY_NAME)
+        yield Segment(" = ")
+        yield self.value
 
 
 @dataclass(frozen=True, eq=True)
