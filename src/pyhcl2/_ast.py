@@ -90,16 +90,19 @@ class IndexSplat(Expression):
 class UnaryOperator(Node):
     type: t.Literal["-", "!"]
 
+
 @dataclass(frozen=True, eq=True)
 class UnaryExpression(Expression):
     op: UnaryOperator
     expr: Expression
+
 
 @dataclass(frozen=True, eq=True)
 class BinaryOperator(Node):
     type: t.Literal[
         "==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"
     ]
+
 
 @dataclass(frozen=True, eq=True)
 class BinaryExpression(Expression):
