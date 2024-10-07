@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from pyhcl2 import Attribute, Block, parse_expr, parse_expr_or_attribute
+from pyhcl2 import Attribute, Block, Identifier, parse_expr, parse_expr_or_attribute
 from pyhcl2.eval import EvaluationScope, Evaluator, Value
 
 
@@ -192,10 +192,10 @@ def test_eval_simple_block() -> None:
     evaluator = Evaluator()
     result = evaluator.eval(
         Block(
-            "test",
+            Identifier("test"),
             [],
             [
-                Attribute("a", parse_expr("1")),
+                Attribute(Identifier("a"), parse_expr("1")),
             ],
         )
     )
@@ -207,21 +207,21 @@ def test_eval_nested_block() -> None:
     evaluator = Evaluator()
     result = evaluator.eval(
         Block(
-            "test",
+            Identifier("test"),
             [],
             [
                 Block(
-                    "nested",
+                    Identifier("nested"),
                     [],
                     [
-                        Attribute("a", parse_expr("1")),
+                        Attribute(Identifier("a"), parse_expr("1")),
                     ],
                 ),
                 Block(
-                    "nested",
+                    Identifier("nested"),
                     [],
                     [
-                        Attribute("a", parse_expr("2")),
+                        Attribute(Identifier("a"), parse_expr("2")),
                     ],
                 ),
             ],

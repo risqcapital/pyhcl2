@@ -14,7 +14,7 @@ from typing import (
     cast,
 )
 
-from pyhcl2 import BinaryOp
+from pyhcl2 import BinaryExpression
 from pyhcl2._ast import (
     Array,
     Attribute,
@@ -35,7 +35,7 @@ from pyhcl2._ast import (
     Node,
     Object,
     Parenthesis,
-    UnaryOp,
+    UnaryExpression,
 )
 
 if TYPE_CHECKING:
@@ -123,10 +123,10 @@ class Evaluator:
 
     def _eval_attribute(self, node: Attribute, scope: EvaluationScope) -> Value:
         value = self.eval(node.value, scope)
-        scope[node.key] = value
+        scope[node.key.name] = value
         return value
 
-    def _eval_binary_op(self, node: BinaryOp, scope: EvaluationScope) -> Value:
+    def _eval_binary_expression(self, node: BinaryExpression, scope: EvaluationScope) -> Value:
         # Note: We MUST not short-circuit if self.can_short_circuit is False
         # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
         left = self.eval(node.left, scope)
@@ -148,14 +148,14 @@ class Evaluator:
             "||": lambda x, y: x or y,
         }
 
-        operation = operations[node.op]
+        operation = operations[node.op.type]
         if callable(operation):
             return operation(left, right)
         else:
             assert isinstance(operation, str)
             return getattr(left, operation)(right)
 
-    def _eval_unary_op(self, node: UnaryOp, scope: EvaluationScope) -> Value:
+    def _eval_unary_expression(self, node: UnaryExpression, scope: EvaluationScope) -> Value:
         value = self.eval(node.expr, scope)
 
         operations = {
@@ -163,7 +163,7 @@ class Evaluator:
             "!": lambda x: not x,
         }
 
-        operation = operations[node.op]
+        operation = operations[node.op.type]
         if callable(operation):
             return operation(value)
         else:

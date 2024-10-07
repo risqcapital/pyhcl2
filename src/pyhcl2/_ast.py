@@ -7,15 +7,15 @@ from functools import cached_property
 
 LiteralValue = None | bool | int | float | str
 
-
-@dataclass(frozen=True, eq=True)
 class Node:
+@dataclass(frozen=True, eq=True, kw_only=True)
     """Base class for HCL2 AST nodes."""
+    start_pos: int | None = None
+    end_pos: int | None = None
 
 
 class Expression(Node):
     """Base class for nodes that represent expressions in HCL2."""
-
 
 @dataclass(frozen=True, eq=True)
 class Literal(Expression):
@@ -85,14 +85,23 @@ class IndexSplat(Expression):
 
 
 @dataclass(frozen=True, eq=True)
-class UnaryOp(Expression):
-    op: t.Literal["-", "!"]
-    expr: Expression
+class UnaryOperator(Node):
+    type: t.Literal["-", "!"]
 
 
 @dataclass(frozen=True, eq=True)
-class BinaryOp(Expression):
-    op: t.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
+class UnaryExpression(Expression):
+    op: UnaryOperator
+    expr: Expression
+
+@dataclass(frozen=True, eq=True)
+class BinaryOperator(Node):
+    type: t.Literal["==", "!=", "<", ">", "<=", ">=", "-", "*", "/", "%", "&&", "||", "+"]
+
+
+@dataclass(frozen=True, eq=True)
+class BinaryExpression(Expression):
+    op: BinaryOperator
     left: Expression
     right: Expression
 
@@ -139,23 +148,23 @@ class Stmt(Node):
 
 @dataclass(frozen=True, eq=True)
 class Attribute(Stmt):
-    key: str
+    key: Identifier
     value: Expression
 
     @property
     def key_path(self) -> tuple[str, ...]:
-        return (self.key,)
+        return (self.key.name,)
 
 
 @dataclass(frozen=True, eq=True)
 class Block(Stmt):
-    type: str
+    type: Identifier
     labels: list[Literal | Identifier]
     body: list[Stmt]
 
     @property
     def key_path(self) -> tuple[str, ...]:
-        key_parts: list[str] = [self.type]
+        key_parts: list[str] = [self.type.name]
         for label in self.labels:
             if isinstance(label, Identifier):
                 key_parts.append(label.name)
@@ -169,7 +178,7 @@ class Block(Stmt):
     @cached_property
     def attributes(self) -> dict[str, Expression]:
         return {
-            stmt.key: stmt.value for stmt in self.body if isinstance(stmt, Attribute)
+            stmt.key.name: stmt.value for stmt in self.body if isinstance(stmt, Attribute)
         }
 
     @cached_property
