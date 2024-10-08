@@ -11,6 +11,7 @@ from pyhcl2.exceptions import HclExceptionGroup, HCLModelValidationError
 Model = TypeVar("Model", bound=BaseModel)
 
 
+# ruff: noqa: PLR0912
 def load_model_from_block(
     block: Block,
     model_cls: type[Model],
@@ -35,7 +36,7 @@ def load_model_from_block(
             target_dict.setdefault(key[-1], []).append(value)
 
         elif isinstance(stmt, Attribute):
-            key = (stmt.key,)
+            key = (stmt.key.name,)
             value = evaluator.eval(stmt, scope.child())
             target_dict = field_values
             for k in key[:-1]:

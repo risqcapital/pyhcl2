@@ -4,14 +4,16 @@ import re
 import sys
 from typing import Any
 
-from lark import Discard, Token, Transformer
+from lark import Discard, Token, Transformer, v_args
+from lark.tree import Meta
 from lark.visitors import _DiscardType
 
 from pyhcl2._ast import (
     Array,
     Attribute,
     AttrSplat,
-    BinaryOp,
+    BinaryExpression,
+    BinaryOperator,
     Block,
     Conditional,
     Expression,
@@ -27,7 +29,8 @@ from pyhcl2._ast import (
     Literal,
     Object,
     Parenthesis,
-    UnaryOp,
+    UnaryExpression,
+    UnaryOperator,
 )
 
 HEREDOC_PATTERN = re.compile(r"<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S)
@@ -42,123 +45,158 @@ class EllipsisMarker:
 
 # noinspection PyMethodMayBeStatic
 class ToAstTransformer(Transformer):
-    def add_op(self, args: list[Token]) -> str:
-        return args[0].value
+    def __binary_op(self, args: list[Token]) -> BinaryOperator:
+        return BinaryOperator(
+            type=args[0].value, start_pos=args[0].start_pos, end_pos=args[0].end_pos
+        )
 
-    def mul_op(self, args: list[Token]) -> str:
-        return args[0].value
+    add_op = __binary_op
+    mul_op = __binary_op
+    comp_op = __binary_op
+    eq_op = __binary_op
+    or_op = __binary_op
+    and_op = __binary_op
 
-    def comp_op(self, args: list[Token]) -> str:
-        return args[0].value
-
-    def eq_op(self, args: list[Token]) -> str:
-        return args[0].value
-
-    def term(self, args: list[Any]) -> BinaryOp:
-        return BinaryOp(args[1], args[0], args[2])
-
-    def add_expr(self, args: list[Any]) -> BinaryOp:
-        return BinaryOp(args[1], args[0], args[2])
-
-    def compare(self, args: list[Any]) -> BinaryOp:
+    def __binary_expression(self, args: list[Any]) -> BinaryExpression:
         args = self.strip_new_line_tokens(args)
-        return BinaryOp(args[1], args[0], args[2])
+        return BinaryExpression(
+            args[1],
+            args[0],
+            args[2],
+            start_pos=args[0].start_pos,
+            end_pos=args[2].end_pos,
+        )
 
-    def equality(self, args: list[Any]) -> BinaryOp:
+    term = __binary_expression
+    add_expr = __binary_expression
+    compare = __binary_expression
+    equality = __binary_expression
+    and_test = __binary_expression
+    or_test = __binary_expression
+
+    def __unary_op(self, args: list[Token]) -> UnaryOperator:
+        return UnaryOperator(
+            type=args[0].value, start_pos=args[0].start_pos, end_pos=args[0].end_pos
+        )
+
+    not_op = __unary_op
+    neg_op = __unary_op
+
+    def __unary_expression(self, args: list[Any]) -> UnaryExpression:
         args = self.strip_new_line_tokens(args)
-        return BinaryOp(args[1], args[0], args[2])
+        return UnaryExpression(
+            args[0], args[1], start_pos=args[0].start_pos, end_pos=args[1].end_pos
+        )
 
-    def and_test(self, args: list[Any]) -> BinaryOp:
-        args = self.strip_new_line_tokens(args)
-        return BinaryOp("&&", args[0], args[1])
-
-    def or_test(self, args: list[Any]) -> BinaryOp:
-        return BinaryOp("||", args[0], args[1])
-
-    def not_test(self, args: list[Any]) -> UnaryOp:
-        return UnaryOp("!", args[0])
-
-    def neg(self, args: list[Any]) -> UnaryOp:
-        return UnaryOp("-", args[0])
+    not_test = __unary_expression
+    neg = __unary_expression
 
     def conditional(self, args: list[Any]) -> Conditional:
-        return Conditional(args[0], args[1], args[2])
+        return Conditional(
+            args[0],
+            args[1],
+            args[2],
+            start_pos=args[0].start_pos,
+            end_pos=args[2].end_pos,
+        )
 
-    def get_attr(self, args: list[Any]) -> GetAttrKey:
-        # print("get_attr", args)
-        return GetAttrKey(args[0])
+    @v_args(meta=True)
+    def get_attr(self, meta: Meta, args: list[Any]) -> GetAttrKey:
+        return GetAttrKey(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def get_attr_expr_term(self, args: list[Any]) -> GetAttr:
-        # print("get_attr_expr_term", args)
         get_attr: GetAttrKey = args[1]
-        return GetAttr(args[0], get_attr)
+        return GetAttr(
+            args[0], get_attr, start_pos=args[0].start_pos, end_pos=get_attr.end_pos
+        )
 
     def float_lit(self, args: list[Token]) -> Literal:
-        return Literal(float("".join([str(arg) for arg in args])))
+        return Literal(
+            float("".join([str(arg) for arg in args])),
+            start_pos=args[0].start_pos,
+            end_pos=args[-1].end_pos,
+        )
 
-    def null_lit(self, _args: list[Token]) -> Literal:
-        return Literal(None)
+    @v_args(meta=True, inline=True)
+    def null_lit(self, meta: Meta) -> Literal:
+        return Literal(None, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def int_lit(self, args: list[Token]) -> Literal:
-        # print("int_lit", args)
-        return Literal(int("".join([str(arg) for arg in args])))
+        return Literal(
+            int("".join([str(arg) for arg in args])),
+            start_pos=args[0].start_pos,
+            end_pos=args[-1].end_pos,
+        )
 
     #
     def expr_term(self, args: list[Any]) -> Any:  # noqa: ANN401
         args = self.strip_new_line_tokens(args)
-        # print("expr_term", args)
         return args[0]
 
     def bool_lit(self, value: list[Token]) -> Literal:
-        # print("bool_lit", value)
         match value[0].value.lower():
             case "true":
-                return Literal(True)
+                return Literal(
+                    True, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                )
             case "false":
-                return Literal(False)
+                return Literal(
+                    False, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                )
         raise ValueError(f"Invalid boolean value: {value[0].value}")
 
     def string_lit(self, value: list[Token]) -> Literal:
-        # print("string_lit", value)
-        return Literal(value[0].value[1:-1])
+        return Literal(
+            value[0].value[1:-1], start_pos=value[0].start_pos, end_pos=value[0].end_pos
+        )
 
     def identifier(self, value: list[Token]) -> Expression:
-        # print("identifier", value)
-        return Identifier(value[0].value)
+        return Identifier(
+            value[0].value, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+        )
 
     def attribute(self, args: list[Expression]) -> Attribute:
         args = self.strip_new_line_tokens(args)
-        # print("attribute", args)
         assert isinstance(args[0], Identifier)
-        return Attribute(args[0].name, args[1])
+        return Attribute(
+            args[0], args[1], start_pos=args[0].start_pos, end_pos=args[1].end_pos
+        )
 
     def body(self, args: list[Any]) -> list[Any]:
         return args
 
-    def block(self, args: list[Any]) -> Block:
+    @v_args(meta=True)
+    def block(self, meta: Meta, args: list[Any]) -> Block:
         args = self.strip_new_line_tokens(args)
-        return Block(args[0].name, args[1:-1], args[-1])
+        return Block(
+            args[0],
+            args[1:-1],
+            args[-1],
+            start_pos=meta.start_pos,
+            end_pos=meta.end_pos,
+        )
 
-    def object(self, args: list[list[Expression]]) -> Object:
+    @v_args(meta=True)
+    def object(self, meta: Meta, args: list[list[Expression]]) -> Object:
         args = self.strip_new_line_tokens(args)
-        # print("object", args)
         fields = {kv[0]: kv[1] for kv in args}
-
-        return Object(fields)
+        return Object(fields, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def object_elem(self, args: list[Expression]) -> list[Expression]:
-        # print("object_elem", args)
         return args
 
-    def tuple(self, args: list[Any]) -> Array:
+    @v_args(meta=True)
+    def tuple(self, meta: Meta, args: list[Any]) -> Array:
         args = self.strip_new_line_tokens(args)
-        return Array(args)
+        return Array(args, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
-    def paren_expr(self, args: list[Expression]) -> Parenthesis:
+    @v_args(meta=True)
+    def paren_expr(self, meta: Meta, args: list[Expression]) -> Parenthesis:
         args = self.strip_new_line_tokens(args)
-        return Parenthesis(args[0])
+        return Parenthesis(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
 
-    def function_call(self, args: list[Any]) -> FunctionCall:
+    @v_args(meta=True)
+    def function_call(self, meta: Meta, args: list[Any]) -> FunctionCall:
         args = self.strip_new_line_tokens(args)
         var_args = False
         arguments = args[1] if len(args) > 1 else []
@@ -166,43 +204,41 @@ class ToAstTransformer(Transformer):
             arguments = arguments[:-1]
             var_args = True
 
-        return FunctionCall(args[0], arguments, var_args)
+        return FunctionCall(
+            args[0], arguments, var_args, start_pos=meta.start_pos, end_pos=meta.end_pos
+        )
 
     def arguments(
         self, args: list[Expression | EllipsisMarker]
     ) -> list[Expression | EllipsisMarker]:
         args = self.strip_new_line_tokens(args)
-        # print("arguments", args)
         return args
 
     def ellipsis(self, args: list[Expression]) -> EllipsisMarker:
-        # print("elipsis", args)
         return EllipsisMarker()
 
-    def index(self, args: list[Expression]) -> GetIndexKey:
-        # print("index", args)
-        return GetIndexKey(args[0])
+    @v_args(meta=True)
+    def index(self, meta: Meta, args: list[Expression]) -> GetIndexKey:
+        return GetIndexKey(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
 
-    def index_expr_term(self, args: list[Any]) -> GetIndex:
-        # print("index_expr_term", args)
+    @v_args(meta=True)
+    def index_expr_term(self, meta: Meta, args: list[Any]) -> GetIndex:
         index: GetIndexKey = args[1]
-        return GetIndex(args[0], index)
+        return GetIndex(args[0], index, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def attr_splat(self, args: list[Any]) -> list[Any]:
-        # print("attr_splat", args)
         return args
 
-    def attr_splat_expr_term(self, args: list[Any]) -> AttrSplat:
-        # print("attr_splat_expr_term", args)
-        return AttrSplat(*args)
+    @v_args(meta=True)
+    def attr_splat_expr_term(self, meta: Meta, args: list[Any]) -> AttrSplat:
+        return AttrSplat(*args, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def full_splat(self, args: list[Any]) -> list[Any]:
-        # print("full_splat", args)
         return args
 
-    def full_splat_expr_term(self, args: list[Any]) -> IndexSplat:
-        # print("full_splat_expr_term", args)
-        return IndexSplat(*args)
+    @v_args(meta=True)
+    def full_splat_expr_term(self, meta: Meta, args: list[Any]) -> IndexSplat:
+        return IndexSplat(*args, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def new_line_or_comment(self, _args: list) -> _DiscardType:
         return Discard
@@ -222,17 +258,15 @@ class ToAstTransformer(Transformer):
 
     def for_intro(self, args: list[Any]) -> list[Any]:
         args = self.strip_new_line_tokens(args)
-        # print("for_intro", args)
         return args
 
     def for_cond(self, args: list[Any]) -> Expression:
-        # print("for_cond", args)
         return args[0]
 
     # noinspection DuplicatedCode
-    def for_tuple_expr(self, args: list[Any]) -> ForTupleExpression:
+    @v_args(meta=True)
+    def for_tuple_expr(self, meta: Meta, args: list[Any]) -> ForTupleExpression:
         args = self.strip_new_line_tokens(args)
-        # print("for_tuple_expr", args)
         for_intro = args[0]
         value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
         key_ident = for_intro[0] if len(for_intro) == 3 else None
@@ -241,13 +275,19 @@ class ToAstTransformer(Transformer):
         condition = args[2] if len(args) == 3 else None
 
         return ForTupleExpression(
-            key_ident, value_ident, collection, expression, condition
+            key_ident,
+            value_ident,
+            collection,
+            expression,
+            condition,
+            start_pos=meta.start_pos,
+            end_pos=meta.end_pos,
         )
 
     # noinspection DuplicatedCode
-    def for_object_expr(self, args: list[Any]) -> ForObjectExpression:
+    @v_args(meta=True)
+    def for_object_expr(self, meta: Meta, args: list[Any]) -> ForObjectExpression:
         args = self.strip_new_line_tokens(args)
-        print("for_object_expression", args)
         for_intro = args[0]
         value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
         key_ident = for_intro[0] if len(for_intro) == 3 else None
@@ -273,18 +313,24 @@ class ToAstTransformer(Transformer):
             value_expression,
             condition,
             grouping_mode,
+            start_pos=meta.start_pos,
+            end_pos=meta.end_pos,
         )
 
-    def heredoc_template(self, args: list[Any]) -> Literal:
+    @v_args(meta=True)
+    def heredoc_template(self, meta: Meta, args: list[Any]) -> Literal:
         match = HEREDOC_PATTERN.match(str(args[0]))
         if not match:
-            raise RuntimeError("Invalid Heredoc token: %s" % args[0])
-        return Literal('"%s"' % match.group(2))
+            raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
+        return Literal(
+            f'"{match.group(2)}"', start_pos=meta.start_pos, end_pos=meta.end_pos
+        )
 
-    def heredoc_template_trim(self, args: list[Any]) -> Literal:
+    @v_args(meta=True)
+    def heredoc_template_trim(self, meta: Meta, args: list[Any]) -> Literal:
         match = HEREDOC_TRIM_PATTERN.match(str(args[0]))
         if not match:
-            raise RuntimeError("Invalid Heredoc token: %s" % args[0])
+            raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
 
         text = match.group(2)
         lines = text.split("\n")
@@ -298,4 +344,6 @@ class ToAstTransformer(Transformer):
         # trim off that number of leading spaces from each line
         lines = [line[min_spaces:] for line in lines]
 
-        return Literal('"%s"' % "\n".join(lines))
+        return Literal(
+            f'"{"\n".join(lines)}"', start_pos=meta.start_pos, end_pos=meta.end_pos
+        )

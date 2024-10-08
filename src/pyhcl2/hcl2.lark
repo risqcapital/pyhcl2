@@ -3,7 +3,7 @@ start_expr : (new_line_or_comment)? expression (new_line_or_comment)?
 start : new_line_or_comment? body new_line_or_comment?
 body : (attribute | block)*
 attribute : identifier "=" expression (new_line_or_comment)?
-block : identifier (identifier | string_lit)* "{" (new_line_or_comment)? body "}" new_line_or_comment
+block : identifier (identifier | string_lit)* "{" (new_line_or_comment)? body "}" new_line_or_comment?
 new_line_and_or_comma: new_line_or_comment | "," | "," new_line_or_comment
 new_line_or_comment: ( /\n/ | /#.*\n/ | /\/\/.*\n/ )+
 
@@ -13,10 +13,14 @@ identifier : /[a-zA-Z_][a-zA-Z0-9_-]*/
 
 ?conditional : or_test "?" new_line_or_comment? or_test new_line_or_comment? ":" new_line_or_comment? or_test | or_test
 
-?or_test: (or_test "||")? and_test
-?and_test: (and_test "&&" new_line_and_or_comma?)? not_test
-?not_test: "!" not_test -> not_test
+?or_test: (or_test or_op)? and_test
+?and_test: (and_test and_op new_line_and_or_comma?)? not_test
+?not_test: not_op not_test -> not_test
          | equality
+
+!or_op: "||"
+!and_op: "&&"
+!not_op: "!"
 
 ?equality: (equality eq_op new_line_and_or_comma?)? compare
 !eq_op: "==" | "!="
@@ -31,7 +35,9 @@ identifier : /[a-zA-Z_][a-zA-Z0-9_-]*/
 !mul_op: "*"|"/"|"%"|"/"
 
 ?unary: expr_term
-      | "-" unary -> neg
+      | neg_op unary -> neg
+
+!neg_op: "-"
 
 expr_term : "(" new_line_or_comment? expression new_line_or_comment? ")" -> paren_expr
             | float_lit

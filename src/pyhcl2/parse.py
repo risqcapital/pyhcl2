@@ -13,21 +13,26 @@ def parse_file(file: t.TextIO) -> Module:
 
 
 def parse_string(text: str, start: str) -> Node:
-    ast = Lark.open(
+    lark = Lark.open(
         "hcl2.lark",
         parser="lalr",
         start=start,
         cache=True,
         rel_to=__file__,
         propagate_positions=True,
-        transformer=ToAstTransformer(),
-    ).parse(text)
+    )
+    parse_tree = lark.parse(text)
+    ast = ToAstTransformer().transform(parse_tree)
 
     return t.cast(Node, ast)
 
 
 def parse_module(text: str) -> Module:
-    return Module(t.cast(list[Stmt], parse_string(text + "\n", start="start")))
+    return Module(
+        t.cast(list[Stmt], parse_string(text, start="start")),
+        start_pos=0,
+        end_pos=len(text),
+    )
 
 
 def parse_expr(text: str) -> Expression:

@@ -1,6 +1,0 @@
-===
-value = "42"
-===
-Module(body=[
-  Attribute(key='value', value=Literal(value='42')),
-])

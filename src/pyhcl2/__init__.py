@@ -2,7 +2,8 @@ from ._ast import (
     Array,
     Attribute,
     AttrSplat,
-    BinaryOp,
+    BinaryExpression,
+    BinaryOperator,
     Block,
     Conditional,
     Expression,
@@ -21,7 +22,8 @@ from ._ast import (
     Object,
     Parenthesis,
     Stmt,
-    UnaryOp,
+    UnaryExpression,
+    UnaryOperator,
 )
 from .parse import parse_expr, parse_expr_or_attribute, parse_file, parse_module
 
@@ -33,7 +35,7 @@ __all__ = [
     "Array",
     "AttrSplat",
     "Attribute",
-    "BinaryOp",
+    "BinaryExpression",
     "Block",
     "Conditional",
     "Expression",
@@ -52,5 +54,7 @@ __all__ = [
     "Object",
     "Parenthesis",
     "Stmt",
-    "UnaryOp",
+    "UnaryExpression",
+    "BinaryOperator",
+    "UnaryOperator",
 ]
