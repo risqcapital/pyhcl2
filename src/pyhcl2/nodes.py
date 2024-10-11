@@ -182,11 +182,7 @@ class IndexSplat(Expression):
     ) -> RenderResult:
         yield self.on
         yield Segment("[*]")
-        for key in self.keys:
-            if isinstance(key, GetAttrKey):
-                yield key
-            else:
-                yield key
+        yield from self.keys
 
 
 @dataclass(frozen=True, eq=True)

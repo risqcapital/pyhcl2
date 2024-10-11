@@ -12,7 +12,7 @@ from pyhcl2.rich_utils import STYLE_KEYWORDS, STYLE_NUMBER, STYLE_STRING, Inline
 
 import pyhcl2.nodes
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, frozen=True)
 class Value(ConsoleRenderable):
 
     @staticmethod
@@ -50,7 +50,7 @@ class Value(ConsoleRenderable):
         except AttributeError:
             return Boolean(True)
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Null(Value):
     def raw(self) -> None:
         return None
@@ -58,7 +58,7 @@ class Null(Value):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment("null", style=STYLE_KEYWORDS)
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Integer(Value):
     _raw: int
     
@@ -85,8 +85,8 @@ class Integer(Value):
 
     def __truediv__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw // other.raw())
-            case Float() as other: return Float(self._raw // other.raw())
+            case Integer() as other: return Float(self._raw / other.raw())
+            case Float() as other: return Float(self._raw / other.raw())
             case _: raise NotImplementedError()
 
     def __mod__(self, other: Value) -> Value:
@@ -131,7 +131,7 @@ class Integer(Value):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(str(self._raw), style=STYLE_NUMBER)
 
-@dataclass(eq=True, unsafe_hash=True)
+@dataclass(eq=True, frozen=True)
 class String(Value):
     _raw: str
 
@@ -156,7 +156,7 @@ class String(Value):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(repr(self._raw), style=STYLE_STRING)
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Float(Value):
     _raw: float
 
@@ -183,8 +183,8 @@ class Float(Value):
 
     def __truediv__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw // other.raw())
-            case Float() as other: return Float(self._raw // other.raw())
+            case Integer() as other: return Float(self._raw / other.raw())
+            case Float() as other: return Float(self._raw / other.raw())
             case _: raise NotImplementedError()
 
     def __mod__(self, other: Value) -> Value:
@@ -229,7 +229,7 @@ class Float(Value):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(str(self._raw), style=STYLE_NUMBER)
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Boolean(Value):
     _raw: bool
 
@@ -252,7 +252,7 @@ class Boolean(Value):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(str(self._raw).lower(), style=STYLE_KEYWORDS)
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Array(Value):
     _raw: list[Value]
 
@@ -277,7 +277,7 @@ class Array(Value):
 
         yield Segment("]")
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Object(Value):
     _raw: dict[Value, Value]
 
@@ -311,7 +311,7 @@ class VariableReference:
     key: tuple[str | None, ...]
     span: SourceSpan
 
-@dataclass(eq=True, unsafe_hash=True)
+@dataclass(eq=True, frozen=True)
 class Unresolved(Value):
     span: SourceSpan | None
 
@@ -378,4 +378,8 @@ class Unresolved(Value):
 
     @staticmethod
     def ident(identifier: "pyhcl2.nodes.Identifier") -> Unresolved:
-        return Unresolved(identifier.span, {VariableReference((identifier.name,), identifier.span)})
+        return Unresolved(
+            identifier.span,
+            {VariableReference((identifier.name,), identifier.span)},
+            set(),
+        )
