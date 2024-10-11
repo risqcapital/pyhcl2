@@ -15,7 +15,7 @@ from typing import (
     Self,
 )
 
-from pyhcl2 import Block, Node
+from pyhcl2 import Block, Node, parse_expr
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_file
 
@@ -134,12 +134,21 @@ def resolve_variable_references(node: Node) -> set[tuple[str, ...]]:
 
 
 if __name__ == "__main__":
-    ast = parse_file(open(Path(sys.argv[1])))
 
-    blocks = [stmt for stmt in ast.body if isinstance(stmt, Block)]
+    block_under_test = parse_expr("a + b + c")
 
-    for block_under_test in blocks:
-        variable_references = resolve_variable_references(block_under_test)
+    variable_references = resolve_variable_references(block_under_test)
 
-        for dirty_child in variable_references:
-            print(block_under_test.key(), "depends_on", dirty_child)
+    for dirty_child in variable_references:
+        print(dirty_child)
+
+
+    # ast = parse_file(open(Path(sys.argv[1])))
+    #
+    # blocks = [stmt for stmt in ast.body if isinstance(stmt, Block)]
+    #
+    # for block_under_test in blocks:
+    #     variable_references = resolve_variable_references(block_under_test)
+    #
+    #     for dirty_child in variable_references:
+    #         print(block_under_test.key(), "depends_on", dirty_child)

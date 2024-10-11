@@ -66,6 +66,12 @@ def load_model_from_block(
                             f"{field_key_str} should be at most {error['ctx']['max_length']} item but was {error['ctx']['actual_length']}"
                         )
                     )
+                case "list_type":
+                    exceptions.append(
+                        HCLModelValidationError(
+                            f"{field_key_str} should be a valid list or block"
+                        )
+                    )
                 case _:
                     exceptions.append(
                         HCLModelValidationError(f"Unhandled pydantic error: {error}")

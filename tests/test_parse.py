@@ -3,7 +3,7 @@ import textwrap
 import pytest
 from lark import UnexpectedToken
 from pyhcl2 import (
-    Array,
+    ArrayExpression,
     Attribute,
     AttrSplat,
     BinaryExpression,
@@ -21,7 +21,7 @@ from pyhcl2 import (
     IndexSplat,
     Literal,
     Module,
-    Object,
+    ObjectExpression,
     Parenthesis,
     UnaryExpression,
     UnaryOperator,
@@ -316,7 +316,7 @@ def test_parse_paren() -> None:
 
 
 def test_parse_array() -> None:
-    assert parse_expr("[1, 2, 3]") == Array(
+    assert parse_expr("[1, 2, 3]") == ArrayExpression(
         [
             Literal(1, start_pos=1, end_pos=2),
             Literal(2, start_pos=4, end_pos=5),
@@ -325,7 +325,7 @@ def test_parse_array() -> None:
         start_pos=0,
         end_pos=9,
     )
-    assert parse_expr("[1, 2, 3, 4]") == Array(
+    assert parse_expr("[1, 2, 3, 4]") == ArrayExpression(
         [
             Literal(1, start_pos=1, end_pos=2),
             Literal(2, start_pos=4, end_pos=5),
@@ -338,7 +338,7 @@ def test_parse_array() -> None:
 
 
 def test_parse_array_complex() -> None:
-    assert parse_expr("[(for), foo, baz]") == Array(
+    assert parse_expr("[(for), foo, baz]") == ArrayExpression(
         [
             Parenthesis(
                 Identifier("for", start_pos=2, end_pos=5), start_pos=1, end_pos=6
@@ -354,7 +354,7 @@ def test_parse_array_complex() -> None:
 
 
 def test_parse_object() -> None:
-    assert parse_expr('{ foo = "bar" }') == Object(
+    assert parse_expr('{ foo = "bar" }') == ObjectExpression(
         {
             Identifier("foo", start_pos=2, end_pos=5): Literal(
                 "bar", start_pos=8, end_pos=13
@@ -363,7 +363,7 @@ def test_parse_object() -> None:
         start_pos=0,
         end_pos=15,
     )
-    assert parse_expr("{ foo: bar }") == Object(
+    assert parse_expr("{ foo: bar }") == ObjectExpression(
         {
             Identifier("foo", start_pos=2, end_pos=5): Identifier(
                 "bar", start_pos=7, end_pos=10
@@ -375,7 +375,7 @@ def test_parse_object() -> None:
 
 
 def test_parse_object_complex() -> None:
-    assert parse_expr("{ (foo) = bar }") == Object(
+    assert parse_expr("{ (foo) = bar }") == ObjectExpression(
         {
             Parenthesis(
                 Identifier("foo", start_pos=3, end_pos=6), start_pos=2, end_pos=7
@@ -384,7 +384,7 @@ def test_parse_object_complex() -> None:
         start_pos=0,
         end_pos=15,
     )
-    assert parse_expr('{ foo = "bar", baz = 42 }') == Object(
+    assert parse_expr('{ foo = "bar", baz = 42 }') == ObjectExpression(
         {
             Identifier("foo", start_pos=2, end_pos=5): Literal(
                 "bar", start_pos=8, end_pos=13
@@ -400,7 +400,7 @@ def test_parse_object_complex() -> None:
     with pytest.raises(UnexpectedToken):
         parse_expr("{ for = 1, baz = 2 }")
 
-    assert parse_expr('{ "for" = 1, baz = 2}') == Object(
+    assert parse_expr('{ "for" = 1, baz = 2}') == ObjectExpression(
         {
             Literal("for", start_pos=2, end_pos=7): Literal(
                 1, start_pos=10, end_pos=11
@@ -412,7 +412,7 @@ def test_parse_object_complex() -> None:
         start_pos=0,
         end_pos=21,
     )
-    assert parse_expr("{ baz = 2, for = 1}") == Object(
+    assert parse_expr("{ baz = 2, for = 1}") == ObjectExpression(
         {
             Identifier("baz", start_pos=2, end_pos=5): Literal(
                 2, start_pos=8, end_pos=9
@@ -424,7 +424,7 @@ def test_parse_object_complex() -> None:
         start_pos=0,
         end_pos=19,
     )
-    assert parse_expr("{ (for) = 1, baz = 2}") == Object(
+    assert parse_expr("{ (for) = 1, baz = 2}") == ObjectExpression(
         {
             Parenthesis(
                 Identifier("for", start_pos=3, end_pos=6), start_pos=2, end_pos=7

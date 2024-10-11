@@ -8,8 +8,8 @@ from lark import Discard, Token, Transformer, v_args
 from lark.tree import Meta
 from lark.visitors import _DiscardType
 
-from pyhcl2._ast import (
-    Array,
+from pyhcl2.nodes import (
+    ArrayExpression,
     Attribute,
     AttrSplat,
     BinaryExpression,
@@ -27,11 +27,12 @@ from pyhcl2._ast import (
     Identifier,
     IndexSplat,
     Literal,
-    Object,
+    ObjectExpression,
     Parenthesis,
     UnaryExpression,
     UnaryOperator,
 )
+from pyhcl2.values import Boolean, String, Float, Integer, Null
 
 HEREDOC_PATTERN = re.compile(r"<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S)
 HEREDOC_TRIM_PATTERN = re.compile(
@@ -112,18 +113,18 @@ class ToAstTransformer(Transformer):
 
     def float_lit(self, args: list[Token]) -> Literal:
         return Literal(
-            float("".join([str(arg) for arg in args])),
+            Float(float("".join([str(arg) for arg in args]))),
             start_pos=args[0].start_pos,
             end_pos=args[-1].end_pos,
         )
 
     @v_args(meta=True, inline=True)
     def null_lit(self, meta: Meta) -> Literal:
-        return Literal(None, start_pos=meta.start_pos, end_pos=meta.end_pos)
+        return Literal(Null(), start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def int_lit(self, args: list[Token]) -> Literal:
         return Literal(
-            int("".join([str(arg) for arg in args])),
+            Integer(int("".join([str(arg) for arg in args]))),
             start_pos=args[0].start_pos,
             end_pos=args[-1].end_pos,
         )
@@ -137,17 +138,17 @@ class ToAstTransformer(Transformer):
         match value[0].value.lower():
             case "true":
                 return Literal(
-                    True, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                    Boolean(True), start_pos=value[0].start_pos, end_pos=value[0].end_pos
                 )
             case "false":
                 return Literal(
-                    False, start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                    Boolean(False), start_pos=value[0].start_pos, end_pos=value[0].end_pos
                 )
         raise ValueError(f"Invalid boolean value: {value[0].value}")
 
     def string_lit(self, value: list[Token]) -> Literal:
         return Literal(
-            value[0].value[1:-1], start_pos=value[0].start_pos, end_pos=value[0].end_pos
+            String(value[0].value[1:-1]), start_pos=value[0].start_pos, end_pos=value[0].end_pos
         )
 
     def identifier(self, value: list[Token]) -> Expression:
@@ -177,18 +178,18 @@ class ToAstTransformer(Transformer):
         )
 
     @v_args(meta=True)
-    def object(self, meta: Meta, args: list[list[Expression]]) -> Object:
+    def object(self, meta: Meta, args: list[list[Expression]]) -> ObjectExpression:
         args = self.strip_new_line_tokens(args)
         fields = {kv[0]: kv[1] for kv in args}
-        return Object(fields, start_pos=meta.start_pos, end_pos=meta.end_pos)
+        return ObjectExpression(fields, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     def object_elem(self, args: list[Expression]) -> list[Expression]:
         return args
 
     @v_args(meta=True)
-    def tuple(self, meta: Meta, args: list[Any]) -> Array:
+    def tuple(self, meta: Meta, args: list[Any]) -> ArrayExpression:
         args = self.strip_new_line_tokens(args)
-        return Array(args, start_pos=meta.start_pos, end_pos=meta.end_pos)
+        return ArrayExpression(args, start_pos=meta.start_pos, end_pos=meta.end_pos)
 
     @v_args(meta=True)
     def paren_expr(self, meta: Meta, args: list[Expression]) -> Parenthesis:
@@ -323,7 +324,7 @@ class ToAstTransformer(Transformer):
         if not match:
             raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
         return Literal(
-            f'"{match.group(2)}"', start_pos=meta.start_pos, end_pos=meta.end_pos
+            String(f'"{match.group(2)}"'), start_pos=meta.start_pos, end_pos=meta.end_pos
         )
 
     @v_args(meta=True)
@@ -345,5 +346,5 @@ class ToAstTransformer(Transformer):
         lines = [line[min_spaces:] for line in lines]
 
         return Literal(
-            f'"{"\n".join(lines)}"', start_pos=meta.start_pos, end_pos=meta.end_pos
+            String(f'"{"\n".join(lines)}"'), start_pos=meta.start_pos, end_pos=meta.end_pos
         )
