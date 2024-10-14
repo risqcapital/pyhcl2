@@ -98,7 +98,7 @@ class LabeledSourceBlock:
                         label_after_middle_len = label_len - label_before_middle_len - 1
 
                         style = Style(
-                            color=Color.from_triplet(DIMMED_MONOKAI.ansi_colors[k + 1])
+                            color=Color.from_triplet(DIMMED_MONOKAI.ansi_colors[(k % 7) + 1])
                         )
 
                         if j == 0:
