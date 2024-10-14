@@ -2,26 +2,32 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping, Sequence
-from typing import Never, Self, MutableMapping, MutableSequence, overload, Iterable
-
 from dataclasses import dataclass, field
+from typing import Iterable, MutableMapping, MutableSequence, Never, Self, overload
+
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
 
 import pyhcl2.nodes
-from pyhcl2.pymiette import SourceSpan, Diagnostic, LabeledSpan
-from pyhcl2.rich_utils import STYLE_KEYWORDS, STYLE_NUMBER, STYLE_STRING, Inline, STYLE_PROPERTY_NAME
+from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
+from pyhcl2.rich_utils import (
+    STYLE_KEYWORDS,
+    STYLE_NUMBER,
+    STYLE_PROPERTY_NAME,
+    STYLE_STRING,
+    Inline,
+)
 
 
 @dataclass(kw_only=True, frozen=True)
 class Value(ConsoleRenderable):
-    span: SourceSpan | None = None
+    span: SourceSpan | None = field(compare=False, hash=False, default=None)
 
     def with_span(self, span: SourceSpan) -> Self:
         return dataclasses.replace(self, span=span)
 
     @staticmethod
-    def infer(value: object) -> "Value":
+    def infer(value: object) -> Value:
         match value:
             case None: return Null()
             case int() as value: return Integer(value)
@@ -33,10 +39,10 @@ class Value(ConsoleRenderable):
             case Value() as value: return value
             case _: raise NotImplementedError()
 
-    def resolve(self) -> "Value":
+    def resolve(self) -> Value:
         return self
 
-    def raise_on_unknown(self) -> "Value":
+    def raise_on_unknown(self) -> Value:
         return self
 
     def raw(self) -> object: ...
@@ -45,7 +51,7 @@ class Value(ConsoleRenderable):
     def type_name(self) -> str:
         return type(self).__name__.lower()
 
-    def __not_equals__(self, other: "Value") -> "Boolean":
+    def __not_equals__(self, other: Value) -> Boolean:
         try:
             return Boolean(
                 not (
@@ -66,7 +72,7 @@ class Null(Value):
 @dataclass(eq=True, frozen=True)
 class Integer(Value):
     _raw: int
-    
+
     def raw(self) -> int:
         return self._raw
 
@@ -100,31 +106,31 @@ class Integer(Value):
             case Float() as other: return Float(self._raw % other.raw())
             case _: raise NotImplementedError()
 
-    def __equals__(self, other: Value) -> "Boolean":
+    def __equals__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw == other.raw())
             case Float() as other: return Boolean(self._raw == other.raw())
             case _: return Boolean(False)
 
-    def __lt__(self, other: Value) -> "Boolean":
+    def __lt__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw < other.raw())
             case Float() as other: return Boolean(self._raw < other.raw())
             case _: raise NotImplementedError()
 
-    def __gt__(self, other: Value) -> "Boolean":
+    def __gt__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw > other.raw())
             case Float() as other: return Boolean(self._raw > other.raw())
             case _: raise NotImplementedError()
 
-    def __le__(self, other: Value) -> "Boolean":
+    def __le__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw <= other.raw())
             case Float() as other: return Boolean(self._raw <= other.raw())
             case _: raise NotImplementedError()
 
-    def __ge__(self, other: Value) -> "Boolean":
+    def __ge__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw >= other.raw())
             case Float() as other: return Boolean(self._raw >= other.raw())
@@ -153,7 +159,7 @@ class String(Value):
             case Integer() as other: return String(self._raw * other.raw())
             case _: raise NotImplementedError()
 
-    def __equals__(self, other: Value) -> "Boolean":
+    def __equals__(self, other: Value) -> Boolean:
         match other:
             case String() as other: return Boolean(self._raw == other.raw())
             case _: return Boolean(False)
@@ -198,31 +204,31 @@ class Float(Value):
             case Float() as other: return Float(self._raw % other.raw())
             case _: raise NotImplementedError()
 
-    def __equals__(self, other: Value) -> "Boolean":
+    def __equals__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw == other.raw())
             case Float() as other: return Boolean(self._raw == other.raw())
             case _: return Boolean(False)
 
-    def __lt__(self, other: Value) -> "Boolean":
+    def __lt__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw < other.raw())
             case Float() as other: return Boolean(self._raw < other.raw())
             case _: raise NotImplementedError()
 
-    def __gt__(self, other: Value) -> "Boolean":
+    def __gt__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw > other.raw())
             case Float() as other: return Boolean(self._raw > other.raw())
             case _: raise NotImplementedError()
 
-    def __le__(self, other: Value) -> "Boolean":
+    def __le__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw <= other.raw())
             case Float() as other: return Boolean(self._raw <= other.raw())
             case _: raise NotImplementedError()
 
-    def __ge__(self, other: Value) -> "Boolean":
+    def __ge__(self, other: Value) -> Boolean:
         match other:
             case Integer() as other: return Boolean(self._raw >= other.raw())
             case Float() as other: return Boolean(self._raw >= other.raw())
@@ -241,7 +247,7 @@ class Boolean(Value):
     def raw(self) -> bool:
         return self._raw
 
-    def __and__(self, other: Value) -> "Boolean":
+    def __and__(self, other: Value) -> Boolean:
         match other:
             case Boolean() as other: return Boolean(self._raw and other.raw())
             case _: raise NotImplementedError()
@@ -254,7 +260,7 @@ class Boolean(Value):
     def __not__(self):
         return Boolean(not self._raw)
 
-    def __equals__(self, other: Value) -> "Boolean":
+    def __equals__(self, other: Value) -> Boolean:
         match other:
             case Boolean() as other: return Boolean(self._raw == other.raw())
             case _: return Boolean(False)
@@ -302,7 +308,7 @@ class Array(Value, MutableSequence[Value]):
     def raw(self) -> list[object]:
         return [item.raw() for item in self._raw]
 
-    def resolve(self) -> "Value":
+    def resolve(self) -> Value:
         unknown = []
         for item in self._raw:
             if isinstance(item, Unknown):
@@ -342,7 +348,7 @@ class Object(Value, MutableMapping[String, Value]):
     def raw(self) -> dict[object, object]:
         return {key.raw(): value.raw() for key, value in self._raw.items()}
 
-    def resolve(self) -> "Value":
+    def resolve(self) -> Value:
         unknown = []
         for key, value in self._raw.items():
             if isinstance(key, Unknown):
@@ -405,7 +411,7 @@ class Unknown(Value):
                     yield Segment(".")
             if i < len(self.indirect_references) - 1:
                 yield Segment(", ")
-        yield Segment(f">")
+        yield Segment(">")
 
     @staticmethod
     def indirect(*values: Value) -> Unknown:
@@ -414,7 +420,7 @@ class Unknown(Value):
             set([ref for value in values if isinstance(value, Unknown) for ref in value.references]),
         )
 
-    def direct(self, span: SourceSpan, key: str) -> "Unknown":
+    def direct(self, span: SourceSpan, key: str) -> Unknown:
         if self.direct_references:
             direct_refs = set([VariableReference((*ref.key, key,), span) for ref in self.direct_references])
         else:
@@ -423,7 +429,7 @@ class Unknown(Value):
         return Unknown(direct_refs, self.references)
 
     @staticmethod
-    def ident(identifier: "pyhcl2.nodes.Identifier") -> Unknown:
+    def ident(identifier: pyhcl2.nodes.Identifier) -> Unknown:
         return Unknown(
             {VariableReference((identifier.name,), identifier.span)},
             set(),

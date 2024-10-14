@@ -1,23 +1,39 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Iterable
-from typing import (
-    Callable, Self, MutableMapping, )
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
+from typing import Callable, MutableMapping, Self
 
 import rich
-from dataclasses import dataclass, field
 from rich.console import Group, NewLine
 from rich.text import Text
 
 from pyhcl2.nodes import (
-    Node, Literal, ArrayExpression, ObjectExpression, Identifier, Parenthesis,
-    BinaryExpression, UnaryExpression, Attribute, GetAttr, GetAttrKey, GetIndex, GetIndexKey, FunctionCall, Conditional,
-    ForTupleExpression, ForObjectExpression, AttrSplat, IndexSplat, Block,
+    ArrayExpression,
+    Attribute,
+    AttrSplat,
+    BinaryExpression,
+    Block,
+    Conditional,
+    ForObjectExpression,
+    ForTupleExpression,
+    FunctionCall,
+    GetAttr,
+    GetAttrKey,
+    GetIndex,
+    GetIndexKey,
+    Identifier,
+    IndexSplat,
+    Literal,
+    Node,
+    ObjectExpression,
+    Parenthesis,
+    UnaryExpression,
 )
 from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
-from pyhcl2.rich_utils import Inline, STYLE_FUNCTION
-from pyhcl2.values import Value, Array, Object, String, Unknown, Integer, Boolean, Null
+from pyhcl2.rich_utils import STYLE_FUNCTION, Inline
+from pyhcl2.values import Array, Boolean, Integer, Null, Object, String, Unknown, Value
 
 camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -85,7 +101,6 @@ class Evaluator:
         rich.print(Inline(Text("eval", style=STYLE_FUNCTION), "(", expr, "):  ", result, NewLine()))
         return result.with_span(expr.span)
 
-
     def _eval_block(self, block: Block, scope: EvaluationScope) -> Value:
         result: dict[String, Value] = {}
 
@@ -103,6 +118,7 @@ class Evaluator:
                         )
 
                     result[key] = value
+
                 case Block() as block:
                     keys = block.keys
                     value = self.eval(block, scope.child())
@@ -217,7 +233,6 @@ class Evaluator:
 
         left = self.eval(expr.left, scope)
         try:
-
             if isinstance(left, Unknown):
                 return Unknown.indirect(left, self.eval(expr.right, scope))
 
@@ -233,7 +248,7 @@ class Evaluator:
                 raise NotImplementedError
 
             return result
-        except (AttributeError, NotImplementedError) as e:
+        except (AttributeError, NotImplementedError):
             right = self.eval(expr.right, scope)
             raise Diagnostic(
                 code="pyhcl2::evaluator::binary_expression::unsupported_operator",
@@ -323,7 +338,7 @@ class Evaluator:
                 message="Key not found in object",
                 labels=[
                     LabeledSpan(on_span, on.type_name),
-                    LabeledSpan(key.ident.span, f"key"),
+                    LabeledSpan(key.ident.span, "key"),
                 ],
             )
             # return Unresolved(key.ident.span, [VariableReference((None, key_value,), key.ident.span)])
@@ -573,8 +588,8 @@ class Evaluator:
             except Diagnostic as e:
                 if e.help is None:
                     e.help = Inline("The resulting expression was ", v, *expr.keys)
-                raise e.with_context(f"while evaluating element {i}").with_context(f"while evaluating attribute splat expression")
-        if on is Unknown:
+                raise e.with_context(f"while evaluating element {i}").with_context("while evaluating attribute splat expression")
+        if isinstance(on, Unknown):
             return Unknown.indirect(*values)
 
         return Array(values)
@@ -607,9 +622,9 @@ class Evaluator:
             except Diagnostic as e:
                 if e.help is None:
                     e.help = Inline("The resulting expression was ", v, *expr.keys)
-                raise e.with_context(f"while evaluating element {i}").with_context(f"while evaluating index splat expression")
+                raise e.with_context(f"while evaluating element {i}").with_context("while evaluating index splat expression")
 
-        if on is Unknown:
+        if isinstance(on, Unknown):
             return Unknown.indirect(*values)
 
         return Array(values)

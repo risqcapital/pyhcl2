@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import dataclasses
 import typing as t
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
 
 from pyhcl2.pymiette import SourceSpan
-from pyhcl2.rich_utils import STYLE_PROPERTY_NAME, STYLE_KEYWORDS, STYLE_FUNCTION, STYLE_NUMBER, STYLE_STRING
-from pyhcl2.values import Value, String
+from pyhcl2.rich_utils import (
+    STYLE_FUNCTION,
+    STYLE_KEYWORDS,
+    STYLE_PROPERTY_NAME,
+)
+from pyhcl2.values import String, Value
 
 
 @dataclass(frozen=True, eq=True, kw_only=True)

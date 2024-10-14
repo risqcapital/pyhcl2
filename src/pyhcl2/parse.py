@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import typing as t
+
 from lark import Lark, UnexpectedCharacters, UnexpectedToken
 
-from pyhcl2.nodes import Attribute, Expression, Module, Node, Stmt
+from pyhcl2.nodes import Expression, Module, Node, Stmt
 from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
 from pyhcl2.transformer import ToAstTransformer
 

@@ -32,7 +32,7 @@ from pyhcl2.nodes import (
     UnaryExpression,
     UnaryOperator,
 )
-from pyhcl2.values import Boolean, String, Float, Integer, Null
+from pyhcl2.values import Boolean, Float, Integer, Null, String
 
 HEREDOC_PATTERN = re.compile(r"<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S)
 HEREDOC_TRIM_PATTERN = re.compile(

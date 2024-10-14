@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 from pyhcl2.eval import EvaluationScope, Evaluator
-from pyhcl2.nodes import Block, Identifier, Attribute
+from pyhcl2.nodes import Attribute, Block, Identifier
 from pyhcl2.parse import parse_expr, parse_expr_or_stmt
 from pyhcl2.pymiette import Diagnostic
-from pyhcl2.values import Value, Integer
+from pyhcl2.values import Integer, Value
 
 
 def eval_hcl(expr: str, **kwargs: object) -> object:

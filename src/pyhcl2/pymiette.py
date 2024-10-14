@@ -1,12 +1,20 @@
+from dataclasses import dataclass, field
 from enum import StrEnum, auto
-from typing import Union, Callable
+from typing import Callable, Union
 
 import rich
-from dataclasses import dataclass, field
 from rich.abc import RichRenderable
 from rich.color import Color
-from rich.console import Console, ConsoleOptions, Group, RenderResult, RichCast, ConsoleRenderable, NewLine, \
-    RenderableType
+from rich.console import (
+    Console,
+    ConsoleOptions,
+    ConsoleRenderable,
+    Group,
+    NewLine,
+    RenderableType,
+    RenderResult,
+    RichCast,
+)
 from rich.padding import Padding
 from rich.segment import Segment
 from rich.style import Style
@@ -109,7 +117,7 @@ class LabeledSourceBlock:
                         else:
                             yield Segment(" " * (before_len + label_before_middle_len))
                             if k == len(labels_in_line) - j:
-                                yield Segment(f"╰─ ", style)
+                                yield Segment("╰─ ", style)
                                 yield Styled(label.label, style)
                             else:
                                 yield Segment("│", style)

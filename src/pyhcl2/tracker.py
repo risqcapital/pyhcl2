@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Sequence
-from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -15,9 +13,8 @@ from typing import (
     Self,
 )
 
-from pyhcl2 import Block, Node, parse_expr
+from pyhcl2 import Node, parse_expr
 from pyhcl2.eval import EvaluationScope, Evaluator
-from pyhcl2.parse import parse_file
 
 
 class IntrinsicFunctionTracker(Mapping):

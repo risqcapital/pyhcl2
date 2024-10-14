@@ -6,7 +6,7 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.history import FileHistory
 from rich.console import NewLine
 
-from pyhcl2.eval import Evaluator, EvaluationScope
+from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_expr_or_stmt
 from pyhcl2.pymiette import Diagnostic
 from pyhcl2.rich_utils import Inline

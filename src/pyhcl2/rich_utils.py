@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from rich.color import Color
-from rich.console import RenderableType, Group
+from rich.console import Group, RenderableType
 from rich.style import Style
 from rich.text import Text
 
