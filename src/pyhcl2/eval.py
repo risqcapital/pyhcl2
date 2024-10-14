@@ -55,22 +55,36 @@ class Evaluator:
     )
 
     def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:
-        method = (
-            f"_eval_{camel_to_snake_pattern.sub('_', expr.__class__.__name__).lower()}"
-        )
-        if hasattr(self, method):
-            result = getattr(self, method)(expr, scope)
-            rich.print(Inline(method, "(", expr, "): ", result, NewLine()))
-            return result.with_span(expr.span)
-        else:
-            raise Diagnostic(
-                code="pyhcl2::evaluator::unsupported_node",
-                message=f"Unsupported node type {expr.__class__.__name__}",
-                labels=[
-                    LabeledSpan(expr.span, "unsupported expression"),
-                ],
-                help=f"Attempted to call {method}, but it does not exist",
-            )
+        match expr:
+            case Block() as expr: result = self._eval_block(expr, scope)
+            case Literal() as expr: result = self._eval_literal(expr, scope)
+            case ArrayExpression() as expr: result = self._eval_array_expression(expr, scope)
+            case ObjectExpression() as expr: result = self._eval_object_expression(expr, scope)
+            case Identifier() as expr: result = self._eval_identifier(expr, scope)
+            case Parenthesis() as expr: result = self._eval_parenthesis(expr, scope)
+            case BinaryExpression() as expr: result = self._eval_binary_expression(expr, scope)
+            case UnaryExpression() as expr: result = self._eval_unary_expression(expr, scope)
+            case Attribute() as expr: result = self._eval_attribute(expr, scope)
+            case GetAttr() as expr: result = self._eval_get_attr(expr, scope)
+            case GetIndex() as expr: result = self._eval_get_index(expr, scope)
+            case FunctionCall() as expr: result = self._eval_function_call(expr, scope)
+            case Conditional() as expr: result = self._eval_conditional(expr, scope)
+            case ForTupleExpression() as expr: result = self._eval_for_tuple_expression(expr, scope)
+            case ForObjectExpression() as expr: result = self._eval_for_object_expression(expr, scope)
+            case AttrSplat() as expr: result = self._eval_attr_splat(expr, scope)
+            case IndexSplat() as expr: result = self._eval_index_splat(expr, scope)
+            case _:
+                raise Diagnostic(
+                    code="pyhcl2::evaluator::unsupported_node",
+                    message=f"Unsupported node type {expr.__class__.__name__}",
+                    labels=[
+                        LabeledSpan(expr.span, "unsupported expression"),
+                    ],
+                )
+
+        rich.print(Inline(Text("eval", style=STYLE_FUNCTION), "(", expr, "):  ", result, NewLine()))
+        return result.with_span(expr.span)
+
 
     def _eval_block(self, block: Block, scope: EvaluationScope) -> Value:
         result: dict[String, Value] = {}
