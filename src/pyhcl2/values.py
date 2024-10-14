@@ -341,7 +341,7 @@ class Unknown(Value):
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment("<")
-        yield Segment("Unresolved due to missing variables, direct: ", style=STYLE_KEYWORDS)
+        yield Segment("Unknown due to missing variables, direct: ", style=STYLE_KEYWORDS)
         for i, ref in enumerate(self.direct_references):
             for j, key in enumerate(ref.key):
                 yield Segment(key if key else "?")
