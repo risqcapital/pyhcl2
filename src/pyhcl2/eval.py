@@ -63,7 +63,7 @@ class Evaluator:
         if hasattr(self, method):
             result = getattr(self, method)(expr, scope)
             rich.print(Inline(method, "(", expr, "): ", result, NewLine()))
-            return result
+            return result.with_span(expr.span)
         else:
             raise Diagnostic(
                 code="pyhcl2::evaluator::unsupported_node",
@@ -117,11 +117,11 @@ class Evaluator:
                     )
             value = self.eval(value_expr, scope)
             if isinstance(value, Unresolved):
-                value = value.merge(value_expr.span)
+                value = value.indirect()
             result[resolved_key] = value
 
         if unresolved_keys:
-            return Unresolved.concat(*unresolved_keys).expand(obj.span)
+            return Unresolved.indirect(*unresolved_keys)
 
         return Object(result)
 
@@ -154,19 +154,17 @@ class Evaluator:
             "||": "__or__",
         }[expr.op.type]
 
-        # TODO: short circuit logical operator evaluation
-
         left = self.eval(expr.left, scope)
         try:
 
             if isinstance(left, Unresolved):
-                return left.merge(expr.span, self.eval(expr.right, scope))
+                return Unresolved.indirect(left, self.eval(expr.right, scope))
 
             operator = getattr(left, operation)
             right = self.eval(expr.right, scope)
 
             if isinstance(right, Unresolved):
-                return right.expand(expr.span)
+                return right
 
             result = operator(right)
 
@@ -244,7 +242,7 @@ class Evaluator:
         key_value = key.ident.name
 
         if isinstance(on, Unresolved):
-            return on.reference(key.ident.span, key.ident.name)
+            return on.direct(key.ident.span, key.ident.name)
 
         if not isinstance(on, Object):
             raise Diagnostic(
@@ -275,17 +273,17 @@ class Evaluator:
         try:
             match on, key_value:
                 case Unresolved() as on, Unresolved() as key_value:
-                    return on.merge(key.span, key_value)
+                    return Unresolved.indirect(on, key_value)
                 case Unresolved() as on, String(raw_str):
-                    return on.reference(key.expr.span, raw_str)
+                    return on.direct(key.expr.span, raw_str)
                 case Unresolved() as on, Integer():
-                    return on.merge(key.span, key_value)
+                    return Unresolved.indirect(on, key_value)
                 case Object(obj_raw), String() as key_value:
                     return obj_raw[key_value]
                 case Array(on_raw), Integer(int_raw):
                     return on_raw[int_raw]
                 case Object(), Unresolved() as key_value:
-                    return key_value.expand(key.span)
+                    return key_value
                 case _:
                     raise Diagnostic(
                         code="pyhcl2::evaluator::get_index::unsupported_type",
@@ -346,8 +344,8 @@ class Evaluator:
 
         match condition:
             case Unresolved() as condition:
-                return condition.merge(
-                    expr.span,
+                return Unresolved.indirect(
+                    condition,
                     self.eval(expr.then_expr, scope),
                     self.eval(expr.else_expr, scope)
                 )
@@ -374,7 +372,7 @@ class Evaluator:
             case Array(array):
                 iterator = [(Integer(k), v) for k,v in enumerate(array)]
             case Unresolved() as collection:
-                unresolved = collection.merge(expr.span)
+                unresolved = collection.indirect()
                 iterator = [(unresolved, unresolved)]
             case _:
                 raise Diagnostic(
@@ -395,12 +393,12 @@ class Evaluator:
 
             match condition:
                 case Unresolved() as condition:
-                    results.append(condition.merge(expr.span, self.eval(expr.value, child_scope)))
+                    results.append(Unresolved.indirect(condition, self.eval(expr.value, child_scope)))
                 case Boolean(True):
                     result = self.eval(expr.value, child_scope)
                     match result:
                         case Unresolved() as result:
-                            results.append(result.merge(expr.span))
+                            results.append(result.indirect())
                         case _:
                             results.append(result)
                 case Boolean(False):
@@ -435,7 +433,7 @@ class Evaluator:
             case Array(array):
                 iterator = [(Integer(k), v) for k,v in enumerate(array)]
             case Unresolved() as collection:
-                unresolved = collection.merge(expr.span)
+                unresolved = collection.indirect()
                 iterator = [(unresolved, unresolved)]
             case _:
                 raise Diagnostic(
@@ -456,8 +454,8 @@ class Evaluator:
 
             match condition:
                 case Unresolved() as condition:
-                    unresolved_blockers.append(condition.merge(
-                        expr.span,
+                    unresolved_blockers.append(Unresolved.indirect(
+                        condition,
                         self.eval(expr.key, child_scope),
                         self.eval(expr.value, child_scope)
                     ))
@@ -465,7 +463,7 @@ class Evaluator:
                     key = self.eval(expr.key, child_scope)
                     match key:
                         case Unresolved() as key:
-                            unresolved_blockers.append(key.merge(expr.span, self.eval(expr.value, child_scope)))
+                            unresolved_blockers.append(Unresolved.indirect(key, self.eval(expr.value, child_scope)))
                         case String() as key:
                             results[key] = self.eval(expr.value, child_scope)
                         case _:
@@ -485,6 +483,6 @@ class Evaluator:
                     )
 
         if unresolved_blockers:
-            return Unresolved.concat(*unresolved_blockers).expand(expr.span)
+            return Unresolved.indirect(*unresolved_blockers)
 
         return Object(results)

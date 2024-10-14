@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Never
+from typing import Never, Self
 
+import dataclasses
 from dataclasses import dataclass, field
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
@@ -14,6 +15,10 @@ import pyhcl2.nodes
 
 @dataclass(kw_only=True, frozen=True)
 class Value(ConsoleRenderable):
+    span: SourceSpan | None = None
+
+    def with_span(self, span: SourceSpan) -> Self:
+        return dataclasses.replace(self, span=span)
 
     @staticmethod
     def infer(value: object) -> "Value":
@@ -270,7 +275,7 @@ class Array(Value):
             if isinstance(item, Unresolved):
                 unresolved.append(item)
         if unresolved:
-            return Unresolved.concat(*unresolved)
+            return Unresolved.indirect(*unresolved)
         return self
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -295,7 +300,7 @@ class Object(Value):
             if isinstance(key, Unresolved):
                 unresolved.append(key)
         if unresolved:
-            return Unresolved.concat(*unresolved)
+            return Unresolved.indirect(*unresolved)
         return self
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -316,8 +321,6 @@ class VariableReference:
 
 @dataclass(eq=True, frozen=True)
 class Unresolved(Value):
-    span: SourceSpan | None
-
     # TODO: Write docs on what direct and indirect references are
     direct_references: set[VariableReference] = field(default_factory=set)
     indirect_references: set[VariableReference] = field(default_factory=set)
@@ -331,7 +334,6 @@ class Unresolved(Value):
 
     def raw(self) -> Never:
         self.raise_on_unresolved()
-
 
     @property
     def references(self) -> set[VariableReference]:
@@ -358,31 +360,23 @@ class Unresolved(Value):
         yield Segment(f">")
 
     @staticmethod
-    def concat(*others: "Unresolved") -> "Unresolved":
-        return Unresolved(None, set(), set([ref for other in others for ref in other.references]))
-
-    def merge(self, span: "SourceSpan", *others: "Value") -> "Unresolved":
+    def indirect(*values: Value) -> Unresolved:
         return Unresolved(
-            span,
             set(),
-            set(self.references | set([ref for other in others if isinstance(other, Unresolved) for ref in other.references]))
+            set([ref for value in values if isinstance(value, Unresolved) for ref in value.references]),
         )
 
-    def expand(self, span: "SourceSpan") -> "Unresolved":
-        return Unresolved(span, self.direct_references, self.indirect_references)
-
-    def reference(self, span: SourceSpan, key: str) -> "Unresolved":
+    def direct(self, span: SourceSpan, key: str) -> "Unresolved":
         if self.direct_references:
             direct_refs = set([VariableReference((*ref.key, key,), span) for ref in self.direct_references])
         else:
             direct_refs = {VariableReference((None, key,), span)}
 
-        return Unresolved(span, direct_refs, self.references)
+        return Unresolved(direct_refs, self.references)
 
     @staticmethod
     def ident(identifier: "pyhcl2.nodes.Identifier") -> Unresolved:
         return Unresolved(
-            identifier.span,
             {VariableReference((identifier.name,), identifier.span)},
             set(),
         )
