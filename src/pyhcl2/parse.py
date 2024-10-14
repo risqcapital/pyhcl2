@@ -60,7 +60,7 @@ def parse_expr(text: str) -> Expression:
     return t.cast(Expression, parse_string(text, start="start_expr"))
 
 
-def parse_expr_or_attribute(text: str) -> Expression | Attribute:
+def parse_expr_or_stmt(text: str) -> Expression | Stmt:
     return t.cast(
-        Expression | Attribute, parse_string(text, start="start_expr_or_attribute")
+        Expression | Stmt, parse_string(text, start="start_expr_or_stmt")
     )

@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from typing import Never, Self
-
 import dataclasses
+from collections.abc import Mapping, Sequence
+from typing import Never, Self, MutableMapping, MutableSequence, overload, Iterable
+
 from dataclasses import dataclass, field
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
 
+import pyhcl2.nodes
 from pyhcl2.pymiette import SourceSpan, Diagnostic, LabeledSpan
 from pyhcl2.rich_utils import STYLE_KEYWORDS, STYLE_NUMBER, STYLE_STRING, Inline, STYLE_PROPERTY_NAME
 
-import pyhcl2.nodes
 
 @dataclass(kw_only=True, frozen=True)
 class Value(ConsoleRenderable):
@@ -263,8 +263,41 @@ class Boolean(Value):
         yield Segment(str(self._raw).lower(), style=STYLE_KEYWORDS)
 
 @dataclass(eq=True, frozen=True)
-class Array(Value):
+class Array(Value, MutableSequence[Value]):
     _raw: list[Value]
+
+    def insert(self, index, value):
+        self._raw.insert(index, value)
+
+    @overload
+    def __getitem__(self, index: int) -> Value: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> MutableSequence[Value]: ...
+
+    def __getitem__(self, index):
+        return self._raw[index]
+
+    @overload
+    def __setitem__(self, index: int, value: Value) -> None: ...
+
+    @overload
+    def __setitem__(self, index: slice, value: Iterable[Value]) -> None: ...
+
+    def __setitem__(self, index, value):
+        self._raw[index] = value
+
+    @overload
+    def __delitem__(self, index: int) -> None: ...
+
+    @overload
+    def __delitem__(self, index: slice) -> None: ...
+
+    def __delitem__(self, index):
+        del self._raw[index]
+
+    def __len__(self):
+        return len(self._raw)
 
     def raw(self) -> list[object]:
         return [item.raw() for item in self._raw]
@@ -288,8 +321,23 @@ class Array(Value):
         yield Segment("]")
 
 @dataclass(eq=True, frozen=True)
-class Object(Value):
+class Object(Value, MutableMapping[String, Value]):
     _raw: dict[String, Value]
+
+    def __setitem__(self, key, value):
+        self._raw[key] = value
+
+    def __getitem__(self, key):
+        return self._raw[key]
+
+    def __delitem__(self, key):
+        del self._raw[key]
+
+    def __len__(self):
+        return len(self._raw)
+
+    def __iter__(self):
+        return iter(self._raw)
 
     def raw(self) -> dict[object, object]:
         return {key.raw(): value.raw() for key, value in self._raw.items()}

@@ -83,6 +83,9 @@ class ObjectExpression(Expression):
 class Identifier(Expression):
     name: str
 
+    def as_string(self) -> String:
+        return String(self.name, span=self.span)
+
     def __rich_console__(
             self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
@@ -359,6 +362,19 @@ class Block(Stmt):
     body: list[Stmt]
 
     @property
+    def keys(self) -> tuple[String, ...]:
+        key_parts: list[String] = [self.type.as_string()]
+        for label in self.labels:
+            match label:
+                case Identifier() as label:
+                    key_parts.append(label.as_string())
+                case Literal(value=String() as string):
+                    key_parts.append(string)
+                case _:
+                    pass
+        return tuple(key_parts)
+
+    @property
     def key_path(self) -> tuple[str, ...]:
         key_parts: list[str] = [self.type.name]
         for label in self.labels:
@@ -379,11 +395,13 @@ class Block(Stmt):
             yield Segment(" ")
             yield label
         yield Segment(" {")
-        yield Segment("\n")
+        # yield Segment("\n")
         for stmt in self.body:
-            yield Segment("  ")
+            yield Segment(" ")
+            # yield Segment("  ")
             yield stmt
-            yield Segment("\n")
+            # yield Segment("\n")
+            yield Segment(" ")
         yield Segment("}")
 
     @cached_property

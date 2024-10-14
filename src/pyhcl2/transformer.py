@@ -252,7 +252,7 @@ class ToAstTransformer(Transformer):
         return args[0]
 
     start_expr = start
-    start_expr_or_attribute = start
+    start_expr_or_stmt = start
 
     def strip_new_line_tokens(self, args: list) -> list:
         return [arg for arg in args if arg != "\n" and not arg == Discard]

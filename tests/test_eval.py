@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.nodes import Block, Identifier, Attribute
-from pyhcl2.parse import parse_expr, parse_expr_or_attribute
+from pyhcl2.parse import parse_expr, parse_expr_or_stmt
 from pyhcl2.pymiette import Diagnostic
 from pyhcl2.values import Value, Integer
 
@@ -186,7 +186,7 @@ def test_eval_attribute() -> None:
     variables: dict[str, Value] = {}
     assert (
         evaluator.eval(
-            parse_expr_or_attribute("a = 1"), EvaluationScope(variables=variables)
+            parse_expr_or_stmt("a = 1"), EvaluationScope(variables=variables)
         ).raw()
         == 1
     )

@@ -3,22 +3,20 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Iterable
 from typing import (
-    Callable, Self, MutableMapping,
-)
-
-from dataclasses import dataclass, field
+    Callable, Self, MutableMapping, )
 
 import rich
+from dataclasses import dataclass, field
 from rich.console import Group, NewLine
 from rich.text import Text
 
-from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
-from pyhcl2.rich_utils import Inline
 from pyhcl2.nodes import (
     Node, Literal, ArrayExpression, ObjectExpression, Identifier, Parenthesis,
     BinaryExpression, UnaryExpression, Attribute, GetAttr, GetAttrKey, GetIndex, GetIndexKey, FunctionCall, Conditional,
-    ForTupleExpression, ForObjectExpression, AttrSplat, IndexSplat,
+    ForTupleExpression, ForObjectExpression, AttrSplat, IndexSplat, Block,
 )
+from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
+from pyhcl2.rich_utils import Inline, STYLE_FUNCTION
 from pyhcl2.values import Value, Array, Object, String, Unknown, Integer, Boolean, Null
 
 camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
@@ -73,6 +71,55 @@ class Evaluator:
                 ],
                 help=f"Attempted to call {method}, but it does not exist",
             )
+
+    def _eval_block(self, block: Block, scope: EvaluationScope) -> Value:
+        result: dict[String, Value] = {}
+
+        for stmt in block.body:
+            match stmt:
+                case Attribute() as attr:
+                    key = attr.key.as_string()
+                    value = self.eval(stmt, scope.child())
+
+                    if key in result:
+                        raise Diagnostic(
+                            code="pyhcl2::evaluator::block::duplicate_key",
+                            message="Duplicate key in block",
+                            labels=[LabeledSpan(attr.key.span, "duplicate key")],
+                        )
+
+                    result[key] = value
+                case Block() as block:
+                    keys = block.keys
+                    value = self.eval(block, scope.child())
+
+                    mapping: MutableMapping[String, Value] = result
+                    for key in keys[:-1]:
+                        match mapping.get(key, None):
+                            case None:
+                                mapping = mapping[key] = Object({})
+                            case Object() as obj:
+                                mapping = obj
+                            case _:
+                                raise Diagnostic(
+                                    code="pyhcl2::evaluator::block::key_conflict",
+                                    message="Key conflict in block",
+                                    labels=[LabeledSpan(block.span, "key conflict")],
+                                )
+
+                    match mapping.get(keys[-1], None):
+                        case None:
+                            mapping[keys[-1]] = Array([value])
+                        case Array() as array:
+                            array.append(value)
+                        case _:
+                            raise Diagnostic(
+                                code="pyhcl2::evaluator::block::key_conflict",
+                                message="Key conflict in block",
+                                labels=[LabeledSpan(block.span, "key conflict")],
+                            )
+
+        return Object(result)
 
     @staticmethod
     def _eval_literal(expr: Literal, _scope: EvaluationScope) -> Value:
@@ -255,7 +302,7 @@ class Evaluator:
             )
 
         try:
-            return on._raw[String(key_value)]
+            return on[String(key_value)]
         except KeyError:
             raise Diagnostic(
                 code="pyhcl2::evaluator::get_attr::missing_key",
@@ -278,10 +325,10 @@ class Evaluator:
                     return on.direct(key.expr.span, raw_str)
                 case Unknown() as on, Integer():
                     return Unknown.indirect(on, key_value)
-                case Object(obj_raw), String() as key_value:
-                    return obj_raw[key_value]
-                case Array(on_raw), Integer(int_raw):
-                    return on_raw[int_raw]
+                case Object() as obj, String() as key_value:
+                    return obj[key_value]
+                case Array() as on, Integer(int_raw):
+                    return on[int_raw]
                 case Object(), Unknown() as key_value:
                     return key_value
                 case _:

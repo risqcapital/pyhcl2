@@ -1,4 +1,4 @@
-start_expr_or_attribute : (new_line_or_comment)? attribute | expression (new_line_or_comment)?
+start_expr_or_stmt : (new_line_or_comment)? attribute | expression | block (new_line_or_comment)?
 start_expr : (new_line_or_comment)? expression (new_line_or_comment)?
 start : new_line_or_comment? body new_line_or_comment?
 body : (attribute | block)*
