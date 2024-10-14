@@ -324,9 +324,16 @@ class Evaluator:
             )
 
         if call.ident.name in self.intrinsic_functions:
-            return self.intrinsic_functions[call.ident.name](
-                *[self.eval(arg, scope) for arg in call.args]
-            )
+            try:
+                return self.intrinsic_functions[call.ident.name](
+                    *[self.eval(arg, scope) for arg in call.args]
+                )
+            except TypeError as e:
+                raise Diagnostic(
+                    code="pyhcl2::evaluator::function_call::invalid_args",
+                    message="Invalid arguments passed to function",
+                    labels=[LabeledSpan(call.args_span, "invalid arguments")],
+                ) from e
 
         raise Diagnostic(
             code="pyhcl2::evaluator::function_call::unsupported_function",

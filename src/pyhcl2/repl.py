@@ -13,6 +13,11 @@ from pyhcl2.rich_utils import Inline
 
 def main() -> None:
     scope = EvaluationScope()
+    evaluator = Evaluator(
+        intrinsic_functions={
+            "test": lambda x: x
+        }
+    )
     session: PromptSession = PromptSession(history=FileHistory(Path.home() / ".pyhcl2_history"))
     try:
         while True:
@@ -26,7 +31,7 @@ def main() -> None:
 
             try:
                 ast = parse_expr_or_attribute(text)
-                result = Evaluator().eval(ast, scope)
+                result = evaluator.eval(ast, scope)
                 rich.print(Inline(result.resolve().raise_on_unresolved(), NewLine()))
             except Diagnostic as diagnostic:
                 rich.print(diagnostic.with_source_code(text))

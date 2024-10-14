@@ -95,6 +95,10 @@ class FunctionCall(Expression):
     args: list[Expression]
     var_args: bool = False
 
+    @property
+    def args_span(self) -> SourceSpan:
+        return SourceSpan(self.ident.span.end_char_index, self.span.end_char_index)
+
     def __post_init__(self) -> None:
         assert all(isinstance(arg, Expression) for arg in self.args), self.args
 
