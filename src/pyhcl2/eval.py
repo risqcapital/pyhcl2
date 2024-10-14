@@ -19,7 +19,7 @@ from pyhcl2.nodes import (
     BinaryExpression, UnaryExpression, Attribute, GetAttr, GetAttrKey, GetIndex, GetIndexKey, FunctionCall, Conditional,
     ForTupleExpression, ForObjectExpression,
 )
-from pyhcl2.values import Value, Array, Object, String, Unresolved, Integer, Boolean
+from pyhcl2.values import Value, Array, Object, String, Unknown, Integer, Boolean
 
 camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -84,7 +84,7 @@ class Evaluator:
     def _eval_object_expression(self, obj: ObjectExpression, scope: EvaluationScope) -> Value:
         result: dict[String, Value] = {}
 
-        unresolved_keys = []
+        unknown_keys = []
 
         for key_expr, value_expr in obj.fields.items():
             resolved_key: String
@@ -97,8 +97,8 @@ class Evaluator:
                     key = self.eval(expr, scope)
 
                     match key:
-                        case Unresolved() as key:
-                            unresolved_keys.append(key)
+                        case Unknown() as key:
+                            unknown_keys.append(key)
                             continue
                         case String() as key:
                             resolved_key = key
@@ -116,12 +116,12 @@ class Evaluator:
                         help=Inline("Did you mean `", Parenthesis(key_expr), " = ", value_expr, "`?"),
                     )
             value = self.eval(value_expr, scope)
-            if isinstance(value, Unresolved):
+            if isinstance(value, Unknown):
                 value = value.indirect()
             result[resolved_key] = value
 
-        if unresolved_keys:
-            return Unresolved.indirect(*unresolved_keys)
+        if unknown_keys:
+            return Unknown.indirect(*unknown_keys)
 
         return Object(result)
 
@@ -130,7 +130,7 @@ class Evaluator:
         try:
             return scope[identifier.name]
         except KeyError:
-            return Unresolved.ident(identifier)
+            return Unknown.ident(identifier)
 
     def _eval_parenthesis(self, paren: Parenthesis, scope: EvaluationScope) -> Value:
         return self.eval(paren.expr, scope)
@@ -157,13 +157,13 @@ class Evaluator:
         left = self.eval(expr.left, scope)
         try:
 
-            if isinstance(left, Unresolved):
-                return Unresolved.indirect(left, self.eval(expr.right, scope))
+            if isinstance(left, Unknown):
+                return Unknown.indirect(left, self.eval(expr.right, scope))
 
             operator = getattr(left, operation)
             right = self.eval(expr.right, scope)
 
-            if isinstance(right, Unresolved):
+            if isinstance(right, Unknown):
                 return right
 
             result = operator(right)
@@ -241,7 +241,7 @@ class Evaluator:
     ) -> Value:
         key_value = key.ident.name
 
-        if isinstance(on, Unresolved):
+        if isinstance(on, Unknown):
             return on.direct(key.ident.span, key.ident.name)
 
         if not isinstance(on, Object):
@@ -272,17 +272,17 @@ class Evaluator:
 
         try:
             match on, key_value:
-                case Unresolved() as on, Unresolved() as key_value:
-                    return Unresolved.indirect(on, key_value)
-                case Unresolved() as on, String(raw_str):
+                case Unknown() as on, Unknown() as key_value:
+                    return Unknown.indirect(on, key_value)
+                case Unknown() as on, String(raw_str):
                     return on.direct(key.expr.span, raw_str)
-                case Unresolved() as on, Integer():
-                    return Unresolved.indirect(on, key_value)
+                case Unknown() as on, Integer():
+                    return Unknown.indirect(on, key_value)
                 case Object(obj_raw), String() as key_value:
                     return obj_raw[key_value]
                 case Array(on_raw), Integer(int_raw):
                     return on_raw[int_raw]
-                case Object(), Unresolved() as key_value:
+                case Object(), Unknown() as key_value:
                     return key_value
                 case _:
                     raise Diagnostic(
@@ -343,8 +343,8 @@ class Evaluator:
         condition = self.eval(expr.cond, scope)
 
         match condition:
-            case Unresolved() as condition:
-                return Unresolved.indirect(
+            case Unknown() as condition:
+                return Unknown.indirect(
                     condition,
                     self.eval(expr.then_expr, scope),
                     self.eval(expr.else_expr, scope)
@@ -371,9 +371,9 @@ class Evaluator:
                 iterator = obj.items()
             case Array(array):
                 iterator = [(Integer(k), v) for k,v in enumerate(array)]
-            case Unresolved() as collection:
-                unresolved = collection.indirect()
-                iterator = [(unresolved, unresolved)]
+            case Unknown() as collection:
+                unknown = collection.indirect()
+                iterator = [(unknown, unknown)]
             case _:
                 raise Diagnostic(
                     code="pyhcl2::evaluator::for_tuple_expression::unsupported_collection",
@@ -392,12 +392,12 @@ class Evaluator:
             )
 
             match condition:
-                case Unresolved() as condition:
-                    results.append(Unresolved.indirect(condition, self.eval(expr.value, child_scope)))
+                case Unknown() as condition:
+                    results.append(Unknown.indirect(condition, self.eval(expr.value, child_scope)))
                 case Boolean(True):
                     result = self.eval(expr.value, child_scope)
                     match result:
-                        case Unresolved() as result:
+                        case Unknown() as result:
                             results.append(result.indirect())
                         case _:
                             results.append(result)
@@ -423,7 +423,7 @@ class Evaluator:
 
         collection = self.eval(expr.collection, scope)
         results: dict[String, Value] = {}
-        unresolved_blockers = []
+        unknown_blockers = []
 
         iterator: Iterable[tuple[Value, Value]]
 
@@ -432,9 +432,9 @@ class Evaluator:
                 iterator = obj.items()
             case Array(array):
                 iterator = [(Integer(k), v) for k,v in enumerate(array)]
-            case Unresolved() as collection:
-                unresolved = collection.indirect()
-                iterator = [(unresolved, unresolved)]
+            case Unknown() as collection:
+                unknown = collection.indirect()
+                iterator = [(unknown, unknown)]
             case _:
                 raise Diagnostic(
                     code="pyhcl2::evaluator::for_object_expression::unsupported_collection",
@@ -453,8 +453,8 @@ class Evaluator:
             )
 
             match condition:
-                case Unresolved() as condition:
-                    unresolved_blockers.append(Unresolved.indirect(
+                case Unknown() as condition:
+                    unknown_blockers.append(Unknown.indirect(
                         condition,
                         self.eval(expr.key, child_scope),
                         self.eval(expr.value, child_scope)
@@ -462,8 +462,8 @@ class Evaluator:
                 case Boolean(True):
                     key = self.eval(expr.key, child_scope)
                     match key:
-                        case Unresolved() as key:
-                            unresolved_blockers.append(Unresolved.indirect(key, self.eval(expr.value, child_scope)))
+                        case Unknown() as key:
+                            unknown_blockers.append(Unknown.indirect(key, self.eval(expr.value, child_scope)))
                         case String() as key:
                             results[key] = self.eval(expr.value, child_scope)
                         case _:
@@ -482,7 +482,7 @@ class Evaluator:
                         labels=[LabeledSpan(expr.condition.span, condition.type_name)],
                     )
 
-        if unresolved_blockers:
-            return Unresolved.indirect(*unresolved_blockers)
+        if unknown_blockers:
+            return Unknown.indirect(*unknown_blockers)
 
         return Object(results)

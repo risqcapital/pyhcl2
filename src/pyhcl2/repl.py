@@ -32,7 +32,7 @@ def main() -> None:
             try:
                 ast = parse_expr_or_attribute(text)
                 result = evaluator.eval(ast, scope)
-                rich.print(Inline(result.resolve().raise_on_unresolved(), NewLine()))
+                rich.print(Inline(result.resolve().raise_on_unknown(), NewLine()))
             except Diagnostic as diagnostic:
                 rich.print(diagnostic.with_source_code(text))
 

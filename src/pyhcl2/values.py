@@ -36,7 +36,7 @@ class Value(ConsoleRenderable):
     def resolve(self) -> "Value":
         return self
 
-    def raise_on_unresolved(self) -> "Value":
+    def raise_on_unknown(self) -> "Value":
         return self
 
     def raw(self) -> object: ...
@@ -270,12 +270,12 @@ class Array(Value):
         return [item.raw() for item in self._raw]
 
     def resolve(self) -> "Value":
-        unresolved = []
+        unknown = []
         for item in self._raw:
-            if isinstance(item, Unresolved):
-                unresolved.append(item)
-        if unresolved:
-            return Unresolved.indirect(*unresolved)
+            if isinstance(item, Unknown):
+                unknown.append(item)
+        if unknown:
+            return Unknown.indirect(*unknown)
         return self
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -295,12 +295,12 @@ class Object(Value):
         return {key.raw(): value.raw() for key, value in self._raw.items()}
 
     def resolve(self) -> "Value":
-        unresolved = []
+        unknown = []
         for key, value in self._raw.items():
-            if isinstance(key, Unresolved):
-                unresolved.append(key)
-        if unresolved:
-            return Unresolved.indirect(*unresolved)
+            if isinstance(key, Unknown):
+                unknown.append(key)
+        if unknown:
+            return Unknown.indirect(*unknown)
         return self
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -320,20 +320,20 @@ class VariableReference:
     span: SourceSpan
 
 @dataclass(eq=True, frozen=True)
-class Unresolved(Value):
+class Unknown(Value):
     # TODO: Write docs on what direct and indirect references are
     direct_references: set[VariableReference] = field(default_factory=set)
     indirect_references: set[VariableReference] = field(default_factory=set)
 
-    def raise_on_unresolved(self) -> Never:
+    def raise_on_unknown(self) -> Never:
         raise Diagnostic(
-            code="pyhcl2::evaluator::unresolved_variable",
-            message=Inline("Failed to evaluate expression due to unresolved variables"),
+            code="pyhcl2::evaluator::unknown_variable",
+            message=Inline("Failed to evaluate expression due to unknown variables"),
             labels=[LabeledSpan(ref.span, f"{ref.key[-1]} could not be resolved ({".".join([k if k else "?" for k in ref.key])})") for ref in self.references],
         )
 
     def raw(self) -> Never:
-        self.raise_on_unresolved()
+        self.raise_on_unknown()
 
     @property
     def references(self) -> set[VariableReference]:
@@ -360,23 +360,23 @@ class Unresolved(Value):
         yield Segment(f">")
 
     @staticmethod
-    def indirect(*values: Value) -> Unresolved:
-        return Unresolved(
+    def indirect(*values: Value) -> Unknown:
+        return Unknown(
             set(),
-            set([ref for value in values if isinstance(value, Unresolved) for ref in value.references]),
+            set([ref for value in values if isinstance(value, Unknown) for ref in value.references]),
         )
 
-    def direct(self, span: SourceSpan, key: str) -> "Unresolved":
+    def direct(self, span: SourceSpan, key: str) -> "Unknown":
         if self.direct_references:
             direct_refs = set([VariableReference((*ref.key, key,), span) for ref in self.direct_references])
         else:
             direct_refs = {VariableReference((None, key,), span)}
 
-        return Unresolved(direct_refs, self.references)
+        return Unknown(direct_refs, self.references)
 
     @staticmethod
-    def ident(identifier: "pyhcl2.nodes.Identifier") -> Unresolved:
-        return Unresolved(
+    def ident(identifier: "pyhcl2.nodes.Identifier") -> Unknown:
+        return Unknown(
             {VariableReference((identifier.name,), identifier.span)},
             set(),
         )
