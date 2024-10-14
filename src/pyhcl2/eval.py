@@ -82,22 +82,32 @@ class Evaluator:
         return Array([self.eval(item, scope) for item in expr.values])
 
     def _eval_object_expression(self, obj: ObjectExpression, scope: EvaluationScope) -> Value:
-        result: dict[Value, Value] = {}
+        result: dict[String, Value] = {}
 
         unresolved_keys = []
 
         for key_expr, value_expr in obj.fields.items():
-            key: Value
+            resolved_key: String
             match key_expr:
                 case Identifier(name):
-                    key = String(name)
-                case Literal(string):
-                    key = string
+                    resolved_key = String(name)
+                case Literal(String() as string):
+                    resolved_key = string
                 case Parenthesis(expr):
                     key = self.eval(expr, scope)
-                    if isinstance(key, Unresolved):
-                        unresolved_keys.append(key)
-                        continue
+
+                    match key:
+                        case Unresolved() as key:
+                            unresolved_keys.append(key)
+                            continue
+                        case String() as key:
+                            resolved_key = key
+                        case _:
+                            raise Diagnostic(
+                                code="pyhcl2::evaluator::object::unsupported_key",
+                                message="Unsupported key type in object",
+                                labels=[LabeledSpan(expr.span, key.type_name)],
+                            )
                 case _:
                     raise Diagnostic(
                         code="pyhcl2::evaluator::object::unsupported_key",
@@ -108,7 +118,7 @@ class Evaluator:
             value = self.eval(value_expr, scope)
             if isinstance(value, Unresolved):
                 value = value.merge(value_expr.span)
-            result[key] = value
+            result[resolved_key] = value
 
         if unresolved_keys:
             return Unresolved.concat(*unresolved_keys).expand(obj.span)

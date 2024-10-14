@@ -8,7 +8,7 @@ from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResul
 from rich.segment import Segment
 
 from pyhcl2.pymiette import SourceSpan, Diagnostic, LabeledSpan
-from pyhcl2.rich_utils import STYLE_KEYWORDS, STYLE_NUMBER, STYLE_STRING, Inline
+from pyhcl2.rich_utils import STYLE_KEYWORDS, STYLE_NUMBER, STYLE_STRING, Inline, STYLE_PROPERTY_NAME
 
 import pyhcl2.nodes
 
@@ -284,7 +284,7 @@ class Array(Value):
 
 @dataclass(eq=True, frozen=True)
 class Object(Value):
-    _raw: dict[Value, Value]
+    _raw: dict[String, Value]
 
     def raw(self) -> dict[object, object]:
         return {key.raw(): value.raw() for key, value in self._raw.items()}
@@ -294,8 +294,6 @@ class Object(Value):
         for key, value in self._raw.items():
             if isinstance(key, Unresolved):
                 unresolved.append(key)
-            if isinstance(value, Unresolved):
-                unresolved.append(value)
         if unresolved:
             return Unresolved.concat(*unresolved)
         return self
@@ -303,7 +301,7 @@ class Object(Value):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment("{")
         for i, (key, value) in enumerate(self._raw.items()):
-            yield key
+            yield Segment(key.raw(), style=STYLE_PROPERTY_NAME)
             yield Segment(" = ")
             yield value
             if i < len(self._raw) - 1:
