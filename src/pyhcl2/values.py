@@ -3,13 +3,21 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Iterable, MutableMapping, MutableSequence, Never, Self, overload
+from typing import (
+    Iterable,
+    Iterator,
+    MutableMapping,
+    MutableSequence,
+    Never,
+    Self,
+    overload,
+)
 
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
 
 import pyhcl2.nodes
-from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
+from pyhcl2.pymiette import DiagnosticError, LabeledSpan, SourceSpan
 from pyhcl2.rich_utils import (
     STYLE_KEYWORDS,
     STYLE_NUMBER,
@@ -23,21 +31,33 @@ from pyhcl2.rich_utils import (
 class Value(ConsoleRenderable):
     span: SourceSpan | None = field(compare=False, hash=False, default=None)
 
-    def with_span(self, span: SourceSpan) -> Self:
+    def with_span(self, span: SourceSpan | None) -> Self:
         return dataclasses.replace(self, span=span)
 
     @staticmethod
-    def infer(value: object) -> Value:
-        match value:
-            case None: return Null()
-            case int() as value: return Integer(value)
-            case float() as value: return Float(value)
-            case str() as value: return String(value)
-            case bool() as value: return Boolean(value)
-            case Sequence() as value: return Array([Value.infer(item) for item in value])
-            case Mapping() as value: return Object({String(str(k)): Value.infer(v) for k, v in value.items()})
-            case Value() as value: return value
-            case _: raise NotImplementedError()
+    def infer(raw: object) -> Value:
+        value: Value
+        match raw:
+            case None:
+                value = Null()
+            case int() as raw:
+                value = Integer(raw)
+            case float() as raw:
+                value = Float(raw)
+            case str() as raw:
+                value = String(raw)
+            case bool() as raw:
+                value = Boolean(raw)
+            case Sequence() as raw:
+                value = Array([Value.infer(item) for item in raw])
+            case Mapping() as raw:
+                value = Object({String(str(k)): Value.infer(v) for k, v in raw.items()})
+            case Value() as raw:
+                value = raw
+            case _:
+                raise NotImplementedError()
+
+        return value
 
     def resolve(self) -> Value:
         return self
@@ -78,65 +98,95 @@ class Integer(Value):
 
     def __add__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Integer(self._raw + other.raw())
-            case Float() as other: return Float(self._raw + other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Integer(self._raw + other.raw())
+            case Float() as other:
+                return Float(self._raw + other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __sub__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Integer(self._raw - other.raw())
-            case Float() as other: return Float(self._raw - other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Integer(self._raw - other.raw())
+            case Float() as other:
+                return Float(self._raw - other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __mul__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Integer(self._raw * other.raw())
-            case Float() as other: return Float(self._raw * other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Integer(self._raw * other.raw())
+            case Float() as other:
+                return Float(self._raw * other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __truediv__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw / other.raw())
-            case Float() as other: return Float(self._raw / other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Float(self._raw / other.raw())
+            case Float() as other:
+                return Float(self._raw / other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __mod__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Integer(self._raw % other.raw())
-            case Float() as other: return Float(self._raw % other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Integer(self._raw % other.raw())
+            case Float() as other:
+                return Float(self._raw % other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __equals__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw == other.raw())
-            case Float() as other: return Boolean(self._raw == other.raw())
-            case _: return Boolean(False)
+            case Integer() as other:
+                return Boolean(self._raw == other.raw())
+            case Float() as other:
+                return Boolean(self._raw == other.raw())
+            case _:
+                return Boolean(False)
 
     def __lt__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw < other.raw())
-            case Float() as other: return Boolean(self._raw < other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw < other.raw())
+            case Float() as other:
+                return Boolean(self._raw < other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __gt__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw > other.raw())
-            case Float() as other: return Boolean(self._raw > other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw > other.raw())
+            case Float() as other:
+                return Boolean(self._raw > other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __le__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw <= other.raw())
-            case Float() as other: return Boolean(self._raw <= other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw <= other.raw())
+            case Float() as other:
+                return Boolean(self._raw <= other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __ge__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw >= other.raw())
-            case Float() as other: return Boolean(self._raw >= other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw >= other.raw())
+            case Float() as other:
+                return Boolean(self._raw >= other.raw())
+            case _:
+                raise NotImplementedError()
 
-    def __neg__(self):
+    def __neg__(self) -> Integer:
         return Integer(-self._raw)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -151,18 +201,24 @@ class String(Value):
 
     def __add__(self, other: Value) -> Value:
         match other:
-            case String() as other: return String(self._raw + other.raw())
-            case _: raise NotImplementedError()
+            case String() as other:
+                return String(self._raw + other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __mul__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return String(self._raw * other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return String(self._raw * other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __equals__(self, other: Value) -> Boolean:
         match other:
-            case String() as other: return Boolean(self._raw == other.raw())
-            case _: return Boolean(False)
+            case String() as other:
+                return Boolean(self._raw == other.raw())
+            case _:
+                return Boolean(False)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(repr(self._raw), style=STYLE_STRING)
@@ -176,65 +232,95 @@ class Float(Value):
 
     def __add__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw + other.raw())
-            case Float() as other: return Float(self._raw + other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Float(self._raw + other.raw())
+            case Float() as other:
+                return Float(self._raw + other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __sub__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw - other.raw())
-            case Float() as other: return Float(self._raw - other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Float(self._raw - other.raw())
+            case Float() as other:
+                return Float(self._raw - other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __mul__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw * other.raw())
-            case Float() as other: return Float(self._raw * other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Float(self._raw * other.raw())
+            case Float() as other:
+                return Float(self._raw * other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __truediv__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw / other.raw())
-            case Float() as other: return Float(self._raw / other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Float(self._raw / other.raw())
+            case Float() as other:
+                return Float(self._raw / other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __mod__(self, other: Value) -> Value:
         match other:
-            case Integer() as other: return Float(self._raw % other.raw())
-            case Float() as other: return Float(self._raw % other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Float(self._raw % other.raw())
+            case Float() as other:
+                return Float(self._raw % other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __equals__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw == other.raw())
-            case Float() as other: return Boolean(self._raw == other.raw())
-            case _: return Boolean(False)
+            case Integer() as other:
+                return Boolean(self._raw == other.raw())
+            case Float() as other:
+                return Boolean(self._raw == other.raw())
+            case _:
+                return Boolean(False)
 
     def __lt__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw < other.raw())
-            case Float() as other: return Boolean(self._raw < other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw < other.raw())
+            case Float() as other:
+                return Boolean(self._raw < other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __gt__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw > other.raw())
-            case Float() as other: return Boolean(self._raw > other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw > other.raw())
+            case Float() as other:
+                return Boolean(self._raw > other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __le__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw <= other.raw())
-            case Float() as other: return Boolean(self._raw <= other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw <= other.raw())
+            case Float() as other:
+                return Boolean(self._raw <= other.raw())
+            case _:
+                raise NotImplementedError()
 
     def __ge__(self, other: Value) -> Boolean:
         match other:
-            case Integer() as other: return Boolean(self._raw >= other.raw())
-            case Float() as other: return Boolean(self._raw >= other.raw())
-            case _: raise NotImplementedError()
+            case Integer() as other:
+                return Boolean(self._raw >= other.raw())
+            case Float() as other:
+                return Boolean(self._raw >= other.raw())
+            case _:
+                raise NotImplementedError()
 
-    def __neg__(self):
+    def __neg__(self) -> Float:
         return Float(-self._raw)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -249,21 +335,27 @@ class Boolean(Value):
 
     def __and__(self, other: Value) -> Boolean:
         match other:
-            case Boolean() as other: return Boolean(self._raw and other.raw())
-            case _: raise NotImplementedError()
+            case Boolean() as other:
+                return Boolean(self._raw and other.raw())
+            case _:
+                raise NotImplementedError()
 
-    def __or__(self, other):
+    def __or__(self, other: Value) -> Boolean:
         match other:
-            case Boolean() as other: return Boolean(self._raw or other.raw())
-            case _: raise NotImplementedError()
+            case Boolean() as other:
+                return Boolean(self._raw or other.raw())
+            case _:
+                raise NotImplementedError()
 
-    def __not__(self):
+    def __not__(self) -> Boolean:
         return Boolean(not self._raw)
 
     def __equals__(self, other: Value) -> Boolean:
         match other:
-            case Boolean() as other: return Boolean(self._raw == other.raw())
-            case _: return Boolean(False)
+            case Boolean() as other:
+                return Boolean(self._raw == other.raw())
+            case _:
+                return Boolean(False)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(str(self._raw).lower(), style=STYLE_KEYWORDS)
@@ -272,7 +364,7 @@ class Boolean(Value):
 class Array(Value, MutableSequence[Value]):
     _raw: list[Value]
 
-    def insert(self, index, value):
+    def insert(self, index: int, value: Value) -> None:
         self._raw.insert(index, value)
 
     @overload
@@ -302,7 +394,7 @@ class Array(Value, MutableSequence[Value]):
     def __delitem__(self, index):
         del self._raw[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._raw)
 
     def raw(self) -> list[object]:
@@ -330,19 +422,19 @@ class Array(Value, MutableSequence[Value]):
 class Object(Value, MutableMapping[String, Value]):
     _raw: dict[String, Value]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: String, value: Value) -> None:
         self._raw[key] = value
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: String) -> Value:
         return self._raw[key]
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: String)-> None:
         del self._raw[key]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._raw)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[String]:
         return iter(self._raw)
 
     def raw(self) -> dict[object, object]:
@@ -380,7 +472,7 @@ class Unknown(Value):
     indirect_references: set[VariableReference] = field(default_factory=set)
 
     def raise_on_unknown(self) -> Never:
-        raise Diagnostic(
+        raise DiagnosticError(
             code="pyhcl2::evaluator::unknown_variable",
             message=Inline("Failed to evaluate expression due to unknown variables"),
             labels=[LabeledSpan(ref.span, f"{ref.key[-1]} could not be resolved ({".".join([k if k else "?" for k in ref.key])})") for ref in self.references],

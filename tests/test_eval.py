@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import pytest
+
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.nodes import Attribute, Block, Identifier
 from pyhcl2.parse import parse_expr, parse_expr_or_stmt
-from pyhcl2.pymiette import Diagnostic
+from pyhcl2.pymiette import DiagnosticError
 from pyhcl2.values import Integer, Value
 
 
@@ -34,7 +35,7 @@ def test_eval_literal_number() -> None:
 
 
 def test_eval_identifier() -> None:
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl("foo")
 
     assert eval_hcl("foo", foo=42) == 42
@@ -111,7 +112,7 @@ def test_eval_object() -> None:
 
 
 def test_eval_function_call() -> None:
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl("foo()")
 
 
@@ -119,24 +120,24 @@ def test_eval_get_attr() -> None:
     assert eval_hcl('{"foo": "bar"}.foo') == "bar"
     assert eval_hcl('{"foo": {"bar": "baz"}}.foo.bar') == "baz"
 
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl('{"foo": {"bar": "baz"}}.foo.baz')
 
     assert eval_hcl("[1,2,3].1") == 2
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl("[1,2,3].3")
 
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl('"abc".0')
 
 
 def test_eval_get_index() -> None:
     assert eval_hcl('["foo", "bar"][0]') == "foo"
     assert eval_hcl('["foo", "bar"][1]') == "bar"
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl('["foo", "bar"][2]')
 
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl('"abc"[0]')
 
 
@@ -162,12 +163,12 @@ def test_eval_for_tuple_expr() -> None:
     assert eval_hcl("[for a, b in c: a if b > 1]", c={"a": 1, "b": 2}) == ["b"]
     assert eval_hcl("[for i,v in [2,3,4]: i]") == [0, 1, 2]
 
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl('[for a in "abc": a]')
 
 
 def test_eval_for_object_expr() -> None:
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl("{for a, b in c: a => b...}")
 
     assert eval_hcl("{for a, b in c: a => b}", c={"a": 1, "b": 2}) == {"a": 1, "b": 2}
@@ -177,7 +178,7 @@ def test_eval_for_object_expr() -> None:
         "c": "c",
     }
 
-    with pytest.raises(Diagnostic):
+    with pytest.raises(DiagnosticError):
         eval_hcl('{for a in "abc": a => a}')
 
 
@@ -233,4 +234,4 @@ def test_eval_nested_block() -> None:
         )
     )
 
-    assert result == {"nested": [{"a": 1}, {"a": 2}]}
+    assert result.raw() == {"nested": [{"a": 1}, {"a": 2}]}

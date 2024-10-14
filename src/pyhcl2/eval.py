@@ -5,8 +5,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Callable, MutableMapping, Self
 
-import rich
-from rich.console import Group, NewLine
+from rich.console import Group
 from rich.text import Text
 
 from pyhcl2.nodes import (
@@ -31,8 +30,8 @@ from pyhcl2.nodes import (
     Parenthesis,
     UnaryExpression,
 )
-from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
-from pyhcl2.rich_utils import STYLE_FUNCTION, Inline
+from pyhcl2.pymiette import DiagnosticError, LabeledSpan, SourceSpan
+from pyhcl2.rich_utils import Inline
 from pyhcl2.values import Array, Boolean, Integer, Null, Object, String, Unknown, Value
 
 camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
@@ -70,27 +69,44 @@ class Evaluator:
         default_factory=dict
     )
 
-    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:
+    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value: # noqa: PLR0912
         match expr:
-            case Block() as expr: result = self._eval_block(expr, scope)
-            case Literal() as expr: result = self._eval_literal(expr, scope)
-            case ArrayExpression() as expr: result = self._eval_array_expression(expr, scope)
-            case ObjectExpression() as expr: result = self._eval_object_expression(expr, scope)
-            case Identifier() as expr: result = self._eval_identifier(expr, scope)
-            case Parenthesis() as expr: result = self._eval_parenthesis(expr, scope)
-            case BinaryExpression() as expr: result = self._eval_binary_expression(expr, scope)
-            case UnaryExpression() as expr: result = self._eval_unary_expression(expr, scope)
-            case Attribute() as expr: result = self._eval_attribute(expr, scope)
-            case GetAttr() as expr: result = self._eval_get_attr(expr, scope)
-            case GetIndex() as expr: result = self._eval_get_index(expr, scope)
-            case FunctionCall() as expr: result = self._eval_function_call(expr, scope)
-            case Conditional() as expr: result = self._eval_conditional(expr, scope)
-            case ForTupleExpression() as expr: result = self._eval_for_tuple_expression(expr, scope)
-            case ForObjectExpression() as expr: result = self._eval_for_object_expression(expr, scope)
-            case AttrSplat() as expr: result = self._eval_attr_splat(expr, scope)
-            case IndexSplat() as expr: result = self._eval_index_splat(expr, scope)
+            case Block() as expr:
+                result = self._eval_block(expr, scope)
+            case Literal() as expr:
+                result = self._eval_literal(expr, scope)
+            case ArrayExpression() as expr:
+                result = self._eval_array_expression(expr, scope)
+            case ObjectExpression() as expr:
+                result = self._eval_object_expression(expr, scope)
+            case Identifier() as expr:
+                result = self._eval_identifier(expr, scope)
+            case Parenthesis() as expr:
+                result = self._eval_parenthesis(expr, scope)
+            case BinaryExpression() as expr:
+                result = self._eval_binary_expression(expr, scope)
+            case UnaryExpression() as expr:
+                result = self._eval_unary_expression(expr, scope)
+            case Attribute() as expr:
+                result = self._eval_attribute(expr, scope)
+            case GetAttr() as expr:
+                result = self._eval_get_attr(expr, scope)
+            case GetIndex() as expr:
+                result = self._eval_get_index(expr, scope)
+            case FunctionCall() as expr:
+                result = self._eval_function_call(expr, scope)
+            case Conditional() as expr:
+                result = self._eval_conditional(expr, scope)
+            case ForTupleExpression() as expr:
+                result = self._eval_for_tuple_expression(expr, scope)
+            case ForObjectExpression() as expr:
+                result = self._eval_for_object_expression(expr, scope)
+            case AttrSplat() as expr:
+                result = self._eval_attr_splat(expr, scope)
+            case IndexSplat() as expr:
+                result = self._eval_index_splat(expr, scope)
             case _:
-                raise Diagnostic(
+                raise DiagnosticError(
                     code="pyhcl2::evaluator::unsupported_node",
                     message=f"Unsupported node type {expr.__class__.__name__}",
                     labels=[
@@ -98,7 +114,7 @@ class Evaluator:
                     ],
                 )
 
-        rich.print(Inline(Text("eval", style=STYLE_FUNCTION), "(", expr, "):  ", result, NewLine()))
+        # rich.print(Inline(Text("eval", style=STYLE_FUNCTION), "(", expr, "):  ", result, NewLine()))
         return result.with_span(expr.span)
 
     def _eval_block(self, block: Block, scope: EvaluationScope) -> Value:
@@ -111,7 +127,7 @@ class Evaluator:
                     value = self.eval(stmt, scope.child())
 
                     if key in result:
-                        raise Diagnostic(
+                        raise DiagnosticError(
                             code="pyhcl2::evaluator::block::duplicate_key",
                             message="Duplicate key in block",
                             labels=[LabeledSpan(attr.key.span, "duplicate key")],
@@ -131,7 +147,7 @@ class Evaluator:
                             case Object() as obj:
                                 mapping = obj
                             case _:
-                                raise Diagnostic(
+                                raise DiagnosticError(
                                     code="pyhcl2::evaluator::block::key_conflict",
                                     message="Key conflict in block",
                                     labels=[LabeledSpan(block.span, "key conflict")],
@@ -143,7 +159,7 @@ class Evaluator:
                         case Array() as array:
                             array.append(value)
                         case _:
-                            raise Diagnostic(
+                            raise DiagnosticError(
                                 code="pyhcl2::evaluator::block::key_conflict",
                                 message="Key conflict in block",
                                 labels=[LabeledSpan(block.span, "key conflict")],
@@ -180,13 +196,13 @@ class Evaluator:
                         case String() as key:
                             resolved_key = key
                         case _:
-                            raise Diagnostic(
+                            raise DiagnosticError(
                                 code="pyhcl2::evaluator::object::unsupported_key",
                                 message="Unsupported key type in object",
                                 labels=[LabeledSpan(expr.span, key.type_name)],
                             )
                 case _:
-                    raise Diagnostic(
+                    raise DiagnosticError(
                         code="pyhcl2::evaluator::object::unsupported_key",
                         message="Unsupported key type in object",
                         labels=[LabeledSpan(key_expr.span, "unsupported key")],
@@ -245,12 +261,13 @@ class Evaluator:
             result = operator(right)
 
             if result is NotImplemented:
-                raise NotImplementedError
+                raise NotImplementedError() # noqa: TRY301
+            else:
+                return result
 
-            return result
         except (AttributeError, NotImplementedError):
             right = self.eval(expr.right, scope)
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::binary_expression::unsupported_operator",
                 message=f"Binary operator `{expr.op.type}` not implemented for operands of types {left.type_name} and {right.type_name}",
                 labels=[
@@ -261,7 +278,7 @@ class Evaluator:
             )
         except ArithmeticError as e:
             right = self.eval(expr.right, scope)
-            raise Diagnostic(
+            raise DiagnosticError(
                     code="pyhcl2::evaluator::binary_expression::arithmetic_error",
                     message=f"An {e} error occurred",
                     labels=[
@@ -284,12 +301,12 @@ class Evaluator:
             result = getattr(value, operation)()
 
             if result is NotImplemented:
-                raise NotImplementedError
-
-            return result
+                raise NotImplementedError() # noqa: TRY301
+            else:
+                return result
 
         except (AttributeError, NotImplementedError):
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::unsupported_unary_operator",
                 message=f"Unary operator `{expr.op.type}` not implemented for operand of type {value.type_name}",
                 labels=[
@@ -321,7 +338,7 @@ class Evaluator:
             return on.direct(key.ident.span, key.ident.name)
 
         if not isinstance(on, Object):
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::get_attr::unsupported_type",
                 message="Cannot get attribute from non-object type",
                 labels=[
@@ -333,7 +350,7 @@ class Evaluator:
         try:
             return on[String(key_value)]
         except KeyError:
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::get_attr::missing_key",
                 message="Key not found in object",
                 labels=[
@@ -361,7 +378,7 @@ class Evaluator:
                 case Object(), Unknown() as key_value:
                     return key_value
                 case _:
-                    raise Diagnostic(
+                    raise DiagnosticError(
                         code="pyhcl2::evaluator::get_index::unsupported_type",
                         message=f"Cannot index into {on.type_name} with {key_value.type_name} key",
                         labels=[
@@ -370,7 +387,7 @@ class Evaluator:
                         ],
                     )
         except KeyError:
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::get_index::missing_key",
                 message="Key not found in object",
                 labels=[
@@ -379,7 +396,7 @@ class Evaluator:
                 ],
             )
         except IndexError:
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::get_index::index_out_of_bounds",
                 message="Index out of bounds",
                 labels=[
@@ -391,7 +408,7 @@ class Evaluator:
     def _eval_function_call(self, call: FunctionCall, scope: EvaluationScope) -> Value:
         if call.var_args:
             # TODO
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::function_call::unsupported_var_args",
                 message="Function calls with var args are not supported",
                 labels=[LabeledSpan(call.span, "call with var args")],
@@ -403,13 +420,13 @@ class Evaluator:
                     *[self.eval(arg, scope) for arg in call.args]
                 )
             except TypeError as e:
-                raise Diagnostic(
+                raise DiagnosticError(
                     code="pyhcl2::evaluator::function_call::invalid_args",
                     message="Invalid arguments passed to function",
                     labels=[LabeledSpan(call.args_span, "invalid arguments")],
                 ) from e
 
-        raise Diagnostic(
+        raise DiagnosticError(
             code="pyhcl2::evaluator::function_call::unsupported_function",
             message=f"Intrinsic function `{call.ident.name}` does not exist",
             labels=[LabeledSpan(call.ident.span, "unsupported function")],
@@ -430,7 +447,7 @@ class Evaluator:
             case Boolean(False):
                 return self.eval(expr.else_expr, scope)
             case _:
-                raise Diagnostic(
+                raise DiagnosticError(
                     code="pyhcl2::evaluator::conditional::unsupported_condition",
                     message=f"Unsupported condition type {condition.type_name}",
                     labels=[LabeledSpan(expr.cond.span, condition.type_name)],
@@ -451,7 +468,7 @@ class Evaluator:
                 unknown = collection.indirect()
                 iterator = [(unknown, unknown)]
             case _:
-                raise Diagnostic(
+                raise DiagnosticError(
                     code="pyhcl2::evaluator::for_tuple_expression::unsupported_collection",
                     message=f"Unsupported collection type {collection.type_name}",
                     labels=[LabeledSpan(expr.collection.span, collection.type_name)],
@@ -481,7 +498,7 @@ class Evaluator:
                     pass
                 case _:
                     assert expr.condition is not None
-                    raise Diagnostic(
+                    raise DiagnosticError(
                         code="pyhcl2::evaluator::for_tuple_expression::unsupported_condition",
                         message=f"Unsupported condition type {condition.type_name}",
                         labels=[LabeledSpan(expr.condition.span, condition.type_name)],
@@ -489,9 +506,9 @@ class Evaluator:
 
         return Array(results)
 
-    def _eval_for_object_expression(self, expr: ForObjectExpression, scope: EvaluationScope) -> Value:
+    def _eval_for_object_expression(self, expr: ForObjectExpression, scope: EvaluationScope) -> Value: # noqa: PLR0912
         if expr.grouping_mode:
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::evaluator::for_object_expression::unsupported_grouping_mode",
                 message="Grouping mode is not supported",
                 labels=[LabeledSpan(expr.span, "grouping mode")],
@@ -512,7 +529,7 @@ class Evaluator:
                 unknown = collection.indirect()
                 iterator = [(unknown, unknown)]
             case _:
-                raise Diagnostic(
+                raise DiagnosticError(
                     code="pyhcl2::evaluator::for_object_expression::unsupported_collection",
                     message=f"Unsupported collection type {collection.type_name}",
                     labels=[LabeledSpan(expr.collection.span, collection.type_name)],
@@ -543,7 +560,7 @@ class Evaluator:
                         case String() as key:
                             results[key] = self.eval(expr.value, child_scope)
                         case _:
-                            raise Diagnostic(
+                            raise DiagnosticError(
                                 code="pyhcl2::evaluator::for_object_expression::unsupported_key",
                                 message=f"Unsupported key type {key.type_name}",
                                 labels=[LabeledSpan(expr.key.span, key.type_name)],
@@ -552,7 +569,7 @@ class Evaluator:
                     pass
                 case _:
                     assert expr.condition is not None
-                    raise Diagnostic(
+                    raise DiagnosticError(
                         code="pyhcl2::evaluator::for_object_expression::unsupported_condition",
                         message=f"Unsupported condition type {condition.type_name}",
                         labels=[LabeledSpan(expr.condition.span, condition.type_name)],
@@ -585,7 +602,7 @@ class Evaluator:
                     value = self._evaluate_get_attr(value, span, key, scope)
                     span = SourceSpan(span.start_char_index, key.span.end_char_index)
                 values.append(value)
-            except Diagnostic as e:
+            except DiagnosticError as e:
                 if e.help is None:
                     e.help = Inline("The resulting expression was ", v, *expr.keys)
                 raise e.with_context(f"while evaluating element {i}").with_context("while evaluating attribute splat expression")
@@ -619,7 +636,7 @@ class Evaluator:
                             value = self._evaluate_get_index(value, span, key, scope)
                     span = SourceSpan(span.start_char_index, key.span.end_char_index)
                 values.append(value)
-            except Diagnostic as e:
+            except DiagnosticError as e:
                 if e.help is None:
                     e.help = Inline("The resulting expression was ", v, *expr.keys)
                 raise e.with_context(f"while evaluating element {i}").with_context("while evaluating index splat expression")

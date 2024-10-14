@@ -25,9 +25,9 @@ class Node(ConsoleRenderable):
     end_pos: int | None = None
 
     @property
-    def span(self) -> SourceSpan:
+    def span(self) -> SourceSpan | None:
         if self.start_pos is None or self.end_pos is None:
-            raise ValueError("Node has no span")
+            return None
         return SourceSpan(self.start_pos, self.end_pos)
 
 
@@ -38,9 +38,6 @@ class Expression(Node):
 @dataclass(frozen=True, eq=True)
 class Literal(Expression):
     value: Value
-
-    # def __post_init__(self) -> None:
-    #     assert isinstance(self.value, (type(None), bool, int, float, str)), self.value
 
     def __rich_console__(
             self, console: Console, options: ConsoleOptions
@@ -88,7 +85,7 @@ class Identifier(Expression):
     name: str
 
     def as_string(self) -> String:
-        return String(self.name, span=self.span)
+        return String(self.name, span=SourceSpan(self.start_pos, self.end_pos) if self.start_pos is not None and self.end_pos is not None else None)
 
     def __rich_console__(
             self, console: Console, options: ConsoleOptions

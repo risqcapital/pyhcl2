@@ -129,7 +129,6 @@ class ToAstTransformer(Transformer):
             end_pos=args[-1].end_pos,
         )
 
-    #
     def expr_term(self, args: list[Any]) -> Any:  # noqa: ANN401
         args = self.strip_new_line_tokens(args)
         return args[0]

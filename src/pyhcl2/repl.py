@@ -8,7 +8,7 @@ from rich.console import NewLine
 
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_expr_or_stmt
-from pyhcl2.pymiette import Diagnostic
+from pyhcl2.pymiette import DiagnosticError
 from pyhcl2.rich_utils import Inline
 
 
@@ -34,7 +34,7 @@ def main() -> None:
                 ast = parse_expr_or_stmt(text)
                 result = evaluator.eval(ast, scope)
                 rich.print(Inline(result.resolve().raise_on_unknown(), NewLine()))
-            except Diagnostic as diagnostic:
+            except DiagnosticError as diagnostic:
                 rich.print(diagnostic.with_source_code(text))
 
     except KeyboardInterrupt:

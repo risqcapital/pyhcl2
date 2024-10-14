@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
-from typing import Callable, Union
+from typing import Callable
 
 import rich
 from rich.abc import RichRenderable
@@ -48,7 +50,7 @@ class LabeledSpan:
     span: SourceSpan
     label: RenderableType
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if isinstance(self.label, str):
             self.label = Text(self.label, end="")
 
@@ -132,7 +134,7 @@ class LabeledSourceBlock:
         yield Segment("  ╰───\n")
 
 @dataclass(kw_only=True)
-class Diagnostic(Exception, RichCast):
+class DiagnosticError(Exception, RichCast):
     severity: Severity = Severity.ERROR
     code: str | None = None
     message: RenderableType
@@ -140,12 +142,12 @@ class Diagnostic(Exception, RichCast):
     source_code: str | None = None
     labels: list[LabeledSpan] = field(default_factory=list)
 
-    def with_context(self, note: str) -> "Diagnostic":
+    def with_context(self, note: str) -> DiagnosticError:
         self.add_note(note)
         return self
 
-    def with_source_code(self, source_code: str) -> "Diagnostic":
-        diag = Diagnostic(
+    def with_source_code(self, source_code: str) -> DiagnosticError:
+        diag = DiagnosticError(
             severity=self.severity,
             code=self.code,
             message=self.message,
@@ -163,7 +165,7 @@ class Diagnostic(Exception, RichCast):
 
         return diag
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.message
 
     def __rich_header(self, _console: Console, _options: ConsoleOptions) -> RenderResult:
@@ -173,7 +175,7 @@ class Diagnostic(Exception, RichCast):
             yield NewLine()
 
     def __rich_causes(self, _console: Console, _options: ConsoleOptions) -> RenderResult:
-        yield Segment(" × ", style=Style(color="red", bold=True))
+        yield Segment(" × ", style=Style(color="red", bold=True)) # noqa: RUF001
         yield self.message
 
         causes: list[Text] = []
@@ -214,7 +216,7 @@ class Diagnostic(Exception, RichCast):
 
 
 
-    def __rich__(self) -> Union["ConsoleRenderable", "RichCast", str]:
+    def __rich__(self) -> ConsoleRenderable | RichCast | str:
         @dataclass
         class Wrapped(RichRenderable):
             inner: Callable[[Console, ConsoleOptions], RenderResult]
@@ -244,7 +246,7 @@ if __name__ == "__main__":
         try:
             test = 1 / 0
         except Exception as e:
-            raise Diagnostic(
+            raise DiagnosticError(
                 severity=Severity.ERROR,
                 code="pymiette::basic_diagnostic",
                 message="Failed to do things",
@@ -254,6 +256,6 @@ if __name__ == "__main__":
                 help="Don't divide by zero",
             ) from e
 
-    except Diagnostic as e:
+    except DiagnosticError as e:
         rich.print(e)
         rich.print(e.with_source_code("a = 1 / 0"))

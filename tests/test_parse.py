@@ -1,8 +1,8 @@
 import textwrap
 
 import pytest
-from lark import UnexpectedToken
-from pyhcl2 import (
+
+from pyhcl2.nodes import (
     ArrayExpression,
     Attribute,
     AttrSplat,
@@ -25,31 +25,35 @@ from pyhcl2 import (
     Parenthesis,
     UnaryExpression,
     UnaryOperator,
+)
+from pyhcl2.parse import (
     parse_expr,
-    parse_expr_or_attribute,
+    parse_expr_or_stmt,
     parse_module,
 )
+from pyhcl2.pymiette import DiagnosticError
+from pyhcl2.values import Boolean, Float, Integer, Null, String
 
 
 def test_parse_literal_null() -> None:
-    assert parse_expr("null") == Literal(None, start_pos=0, end_pos=4)
+    assert parse_expr("null") == Literal(Null(), start_pos=0, end_pos=4)
 
 
 def test_parse_literal_string() -> None:
     assert parse_expr('"Hello World"') == Literal(
-        "Hello World", start_pos=0, end_pos=13
+        String("Hello World"), start_pos=0, end_pos=13
     )
 
 
 def test_parse_literal_bool() -> None:
-    assert parse_expr("true") == Literal(True, start_pos=0, end_pos=4)
-    assert parse_expr("false") == Literal(False, start_pos=0, end_pos=5)
+    assert parse_expr("true") == Literal(Boolean(True), start_pos=0, end_pos=4)
+    assert parse_expr("false") == Literal(Boolean(False), start_pos=0, end_pos=5)
 
 
 def test_parse_literal_number() -> None:
-    assert parse_expr("42") == Literal(42, start_pos=0, end_pos=2)
-    assert parse_expr("42.0") == Literal(42.0, start_pos=0, end_pos=4)
-    assert parse_expr("42.42") == Literal(42.42, start_pos=0, end_pos=5)
+    assert parse_expr("42") == Literal(Integer(42), start_pos=0, end_pos=2)
+    assert parse_expr("42.0") == Literal(Float(42.0), start_pos=0, end_pos=4)
+    assert parse_expr("42.42") == Literal(Float(42.42), start_pos=0, end_pos=5)
 
 
 def test_parse_identifier() -> None:
@@ -318,19 +322,19 @@ def test_parse_paren() -> None:
 def test_parse_array() -> None:
     assert parse_expr("[1, 2, 3]") == ArrayExpression(
         [
-            Literal(1, start_pos=1, end_pos=2),
-            Literal(2, start_pos=4, end_pos=5),
-            Literal(3, start_pos=7, end_pos=8),
+            Literal(Integer(1), start_pos=1, end_pos=2),
+            Literal(Integer(2), start_pos=4, end_pos=5),
+            Literal(Integer(3), start_pos=7, end_pos=8),
         ],
         start_pos=0,
         end_pos=9,
     )
     assert parse_expr("[1, 2, 3, 4]") == ArrayExpression(
         [
-            Literal(1, start_pos=1, end_pos=2),
-            Literal(2, start_pos=4, end_pos=5),
-            Literal(3, start_pos=7, end_pos=8),
-            Literal(4, start_pos=10, end_pos=11),
+            Literal(Integer(1), start_pos=1, end_pos=2),
+            Literal(Integer(2), start_pos=4, end_pos=5),
+            Literal(Integer(3), start_pos=7, end_pos=8),
+            Literal(Integer(4), start_pos=10, end_pos=11),
         ],
         start_pos=0,
         end_pos=12,
@@ -349,7 +353,7 @@ def test_parse_array_complex() -> None:
         start_pos=0,
         end_pos=17,
     )
-    with pytest.raises(UnexpectedToken):
+    with pytest.raises(DiagnosticError):
         parse_expr("[for, foo, baz]")
 
 
@@ -357,7 +361,7 @@ def test_parse_object() -> None:
     assert parse_expr('{ foo = "bar" }') == ObjectExpression(
         {
             Identifier("foo", start_pos=2, end_pos=5): Literal(
-                "bar", start_pos=8, end_pos=13
+                String("bar"), start_pos=8, end_pos=13
             )
         },
         start_pos=0,
@@ -387,26 +391,26 @@ def test_parse_object_complex() -> None:
     assert parse_expr('{ foo = "bar", baz = 42 }') == ObjectExpression(
         {
             Identifier("foo", start_pos=2, end_pos=5): Literal(
-                "bar", start_pos=8, end_pos=13
+                String("bar"), start_pos=8, end_pos=13
             ),
             Identifier("baz", start_pos=15, end_pos=18): Literal(
-                42, start_pos=21, end_pos=23
+                Integer(42), start_pos=21, end_pos=23
             ),
         },
         start_pos=0,
         end_pos=25,
     )
 
-    with pytest.raises(UnexpectedToken):
+    with pytest.raises(DiagnosticError):
         parse_expr("{ for = 1, baz = 2 }")
 
     assert parse_expr('{ "for" = 1, baz = 2}') == ObjectExpression(
         {
-            Literal("for", start_pos=2, end_pos=7): Literal(
-                1, start_pos=10, end_pos=11
+            Literal(String("for"), start_pos=2, end_pos=7): Literal(
+                Integer(1), start_pos=10, end_pos=11
             ),
             Identifier("baz", start_pos=13, end_pos=16): Literal(
-                2, start_pos=19, end_pos=20
+                Integer(2), start_pos=19, end_pos=20
             ),
         },
         start_pos=0,
@@ -415,10 +419,10 @@ def test_parse_object_complex() -> None:
     assert parse_expr("{ baz = 2, for = 1}") == ObjectExpression(
         {
             Identifier("baz", start_pos=2, end_pos=5): Literal(
-                2, start_pos=8, end_pos=9
+                Integer(2), start_pos=8, end_pos=9
             ),
             Identifier("for", start_pos=11, end_pos=14): Literal(
-                1, start_pos=17, end_pos=18
+                Integer(1), start_pos=17, end_pos=18
             ),
         },
         start_pos=0,
@@ -428,9 +432,9 @@ def test_parse_object_complex() -> None:
         {
             Parenthesis(
                 Identifier("for", start_pos=3, end_pos=6), start_pos=2, end_pos=7
-            ): Literal(1, start_pos=10, end_pos=11),
+            ): Literal(Integer(1), start_pos=10, end_pos=11),
             Identifier("baz", start_pos=13, end_pos=16): Literal(
-                2, start_pos=19, end_pos=20
+                Integer(2), start_pos=19, end_pos=20
             ),
         },
         start_pos=0,
@@ -445,9 +449,9 @@ def test_parse_function_call() -> None:
     assert parse_expr("foo(1, 2, 3)") == FunctionCall(
         Identifier("foo", start_pos=0, end_pos=3),
         [
-            Literal(1, start_pos=4, end_pos=5),
-            Literal(2, start_pos=7, end_pos=8),
-            Literal(3, start_pos=10, end_pos=11),
+            Literal(Integer(1), start_pos=4, end_pos=5),
+            Literal(Integer(2), start_pos=7, end_pos=8),
+            Literal(Integer(3), start_pos=10, end_pos=11),
         ],
         start_pos=0,
         end_pos=12,
@@ -455,9 +459,9 @@ def test_parse_function_call() -> None:
     assert parse_expr("foo(1, 2, 3...)") == FunctionCall(
         Identifier("foo", start_pos=0, end_pos=3),
         [
-            Literal(1, start_pos=4, end_pos=5),
-            Literal(2, start_pos=7, end_pos=8),
-            Literal(3, start_pos=10, end_pos=11),
+            Literal(Integer(1), start_pos=4, end_pos=5),
+            Literal(Integer(2), start_pos=7, end_pos=8),
+            Literal(Integer(3), start_pos=10, end_pos=11),
         ],
         var_args=True,
         start_pos=0,
@@ -477,7 +481,7 @@ def test_parse_get_attr() -> None:
 def test_parse_get_index() -> None:
     assert parse_expr("foo[0]") == GetIndex(
         Identifier("foo", start_pos=0, end_pos=3),
-        GetIndexKey(Literal(0, start_pos=4, end_pos=5), start_pos=3, end_pos=6),
+        GetIndexKey(Literal(Integer(0), start_pos=4, end_pos=5), start_pos=3, end_pos=6),
         start_pos=0,
         end_pos=6,
     )
@@ -517,7 +521,7 @@ def test_parse_index_splat() -> None:
     )
     assert parse_expr("foo[*][3]") == IndexSplat(
         Identifier("foo", start_pos=0, end_pos=3),
-        [GetIndexKey(Literal(3, start_pos=7, end_pos=8), start_pos=6, end_pos=9)],
+        [GetIndexKey(Literal(Integer(3), start_pos=7, end_pos=8), start_pos=6, end_pos=9)],
         start_pos=0,
         end_pos=9,
     )
@@ -527,7 +531,7 @@ def test_parse_index_splat() -> None:
             GetAttrKey(
                 Identifier("bar", start_pos=7, end_pos=10), start_pos=6, end_pos=10
             ),
-            GetIndexKey(Literal(3, start_pos=11, end_pos=12), start_pos=10, end_pos=13),
+            GetIndexKey(Literal(Integer(3), start_pos=11, end_pos=12), start_pos=10, end_pos=13),
         ],
         start_pos=0,
         end_pos=13,
@@ -636,7 +640,7 @@ def test_parse_for_object_expr() -> None:
 
 
 def test_parse_attribute() -> None:
-    assert parse_expr_or_attribute("a = b") == Attribute(
+    assert parse_expr_or_stmt("a = b") == Attribute(
         Identifier("a", start_pos=0, end_pos=1),
         Identifier("b", start_pos=4, end_pos=5),
         start_pos=0,
@@ -670,7 +674,7 @@ def test_parse_block() -> None:
         [
             Block(
                 Identifier("resource", start_pos=0, end_pos=8),
-                [Literal("a", start_pos=9, end_pos=12)],
+                [Literal(String("a"), start_pos=9, end_pos=12)],
                 [
                     Attribute(
                         Identifier("a", start_pos=15, end_pos=16),
@@ -693,7 +697,7 @@ def test_parse_block() -> None:
                 Identifier("resource", start_pos=0, end_pos=8),
                 [
                     Identifier("a", start_pos=9, end_pos=10),
-                    Literal("b", start_pos=11, end_pos=14),
+                    Literal(String("b"), start_pos=11, end_pos=14),
                 ],
                 [
                     Attribute(
@@ -719,13 +723,13 @@ def test_parse_block() -> None:
                 [
                     Attribute(
                         Identifier("a", start_pos=9, end_pos=10),
-                        Literal(1, start_pos=13, end_pos=14),
+                        Literal(Integer(1), start_pos=13, end_pos=14),
                         start_pos=9,
                         end_pos=14,
                     ),
                     Attribute(
                         Identifier("b", start_pos=15, end_pos=16),
-                        Literal(2, start_pos=19, end_pos=20),
+                        Literal(Integer(2), start_pos=19, end_pos=20),
                         start_pos=15,
                         end_pos=20,
                     ),
@@ -766,7 +770,7 @@ def test_parse_multiple_blocks() -> None:
                         start_pos=13,
                         end_pos=26,
                         key=Identifier(start_pos=13, end_pos=18, name="value"),
-                        value=Literal(start_pos=21, end_pos=26, value="foo"),
+                        value=Literal(start_pos=21, end_pos=26, value=String("foo")),
                     )
                 ],
             ),
@@ -780,7 +784,7 @@ def test_parse_multiple_blocks() -> None:
                         start_pos=47,
                         end_pos=57,
                         key=Identifier(start_pos=47, end_pos=52, name="value"),
-                        value=Literal(start_pos=55, end_pos=57, value=42),
+                        value=Literal(start_pos=55, end_pos=57, value=Integer(42)),
                     )
                 ],
             ),
@@ -789,7 +793,7 @@ def test_parse_multiple_blocks() -> None:
                 end_pos=100,
                 type=Identifier(start_pos=60, end_pos=66, name="block3"),
                 labels=[
-                    Literal(start_pos=67, end_pos=73, value="arg2"),
+                    Literal(start_pos=67, end_pos=73, value=String("arg2")),
                     Identifier(start_pos=74, end_pos=78, name="arg3"),
                 ],
                 body=[

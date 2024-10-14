@@ -5,7 +5,7 @@ import typing as t
 from lark import Lark, UnexpectedCharacters, UnexpectedToken
 
 from pyhcl2.nodes import Expression, Module, Node, Stmt
-from pyhcl2.pymiette import Diagnostic, LabeledSpan, SourceSpan
+from pyhcl2.pymiette import DiagnosticError, LabeledSpan, SourceSpan
 from pyhcl2.transformer import ToAstTransformer
 
 
@@ -27,20 +27,20 @@ def parse_string(text: str, start: str) -> Node:
         ast = ToAstTransformer().transform(parse_tree)
 
     except UnexpectedCharacters as e:
-        raise Diagnostic(
+        raise DiagnosticError(
             code="pyhcl2::lexer::unexpected_character",
             message="The lexer encountered an unexpected character",
             labels=[LabeledSpan(SourceSpan(e.pos_in_stream, e.pos_in_stream + 1), "Unexpected character")],
         ) from e
     except UnexpectedToken as e:
         if e.token.type == "$END":
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::parser::unexpected_eof",
                 message="The parser expected a token, but the input ended",
                 labels=[LabeledSpan(SourceSpan(e.token.start_pos, e.token.end_pos), "Unexpected EOF")],
             ) from e
         else:
-            raise Diagnostic(
+            raise DiagnosticError(
                 code="pyhcl2::parser::unexpected_token",
                 message="The parser encountered an unexpected token",
                 labels=[LabeledSpan(SourceSpan(e.token.start_pos, e.token.end_pos), "Unexpected token")],

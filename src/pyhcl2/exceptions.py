@@ -1,4 +1,4 @@
-class HclExceptionGroup(ExceptionGroup):
+class HclExceptionGroup(ExceptionGroup): # noqa: F821
     pass
 
 
