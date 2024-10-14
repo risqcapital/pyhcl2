@@ -249,6 +249,11 @@ class Boolean(Value):
     def __not__(self):
         return Boolean(not self._raw)
 
+    def __equals__(self, other: Value) -> "Boolean":
+        match other:
+            case Boolean() as other: return Boolean(self._raw == other.raw())
+            case _: return Boolean(False)
+
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         yield Segment(str(self._raw).lower(), style=STYLE_KEYWORDS)
 
