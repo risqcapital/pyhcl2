@@ -170,6 +170,9 @@ class Evaluator:
 
             result = operator(right)
 
+            if result is NotImplemented:
+                raise NotImplementedError
+
             return result
         except (AttributeError, NotImplementedError) as e:
             right = self.eval(expr.right, scope)
@@ -204,7 +207,12 @@ class Evaluator:
                 "-": "__neg__",
                 "!": "__not__",
             }[expr.op.type]
-            return getattr(value, operation)()
+            result = getattr(value, operation)()
+
+            if result is NotImplemented:
+                raise NotImplementedError
+
+            return result
 
         except (AttributeError, NotImplementedError):
             raise Diagnostic(
