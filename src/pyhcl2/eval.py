@@ -409,7 +409,7 @@ class Evaluator:
             )
 
         collection = self.eval(expr.collection, scope)
-        results: dict[Value, Value] = {}
+        results: dict[String, Value] = {}
         unresolved_blockers = []
 
         iterator: Iterable[tuple[Value, Value]]
@@ -451,7 +451,7 @@ class Evaluator:
                     match key:
                         case Unresolved() as key:
                             unresolved_blockers.append(key.merge(expr.span, self.eval(expr.value, child_scope)))
-                        case String():
+                        case String() as key:
                             results[key] = self.eval(expr.value, child_scope)
                         case _:
                             raise Diagnostic(
