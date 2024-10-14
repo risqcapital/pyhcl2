@@ -17,9 +17,9 @@ from pyhcl2.rich_utils import Inline
 from pyhcl2.nodes import (
     Node, Literal, ArrayExpression, ObjectExpression, Identifier, Parenthesis,
     BinaryExpression, UnaryExpression, Attribute, GetAttr, GetAttrKey, GetIndex, GetIndexKey, FunctionCall, Conditional,
-    ForTupleExpression, ForObjectExpression,
+    ForTupleExpression, ForObjectExpression, AttrSplat, IndexSplat,
 )
-from pyhcl2.values import Value, Array, Object, String, Unknown, Integer, Boolean
+from pyhcl2.values import Value, Array, Object, String, Unknown, Integer, Boolean, Null
 
 camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -486,3 +486,69 @@ class Evaluator:
             return Unknown.indirect(*unknown_blockers)
 
         return Object(results)
+
+
+    def _eval_attr_splat(self, expr: AttrSplat, scope: EvaluationScope) -> Value:
+        on = self.eval(expr.on, scope)
+
+        match on:
+            case Null():
+                return Array([])
+            case Array(array):
+                iterable = array
+            case _:
+                iterable = [on]
+
+        values = []
+
+        for i, v in enumerate(iterable):
+            try:
+                span = expr.on.span
+                value = v
+                for key in expr.keys:
+                    value = self._evaluate_get_attr(value, span, key, scope)
+                    span = SourceSpan(span.start_char_index, key.span.end_char_index)
+                values.append(value)
+            except Diagnostic as e:
+                if e.help is None:
+                    e.help = Inline("The resulting expression was ", v, *expr.keys)
+                raise e.with_context(f"while evaluating element {i}").with_context(f"while evaluating attribute splat expression")
+        if on is Unknown:
+            return Unknown.indirect(*values)
+
+        return Array(values)
+
+    def _eval_index_splat(self, expr: IndexSplat, scope: EvaluationScope) -> Value:
+        on = self.eval(expr.on, scope)
+
+        match on:
+            case Null():
+                return Array([])
+            case Array(array):
+                iterable = array
+            case _:
+                iterable = [on]
+
+        values = []
+
+        for i, v in enumerate(iterable):
+            try:
+                span = expr.on.span
+                value = v
+                for key in expr.keys:
+                    match key:
+                        case GetAttrKey():
+                            value = self._evaluate_get_attr(value, span, key, scope)
+                        case GetIndexKey():
+                            value = self._evaluate_get_index(value, span, key, scope)
+                    span = SourceSpan(span.start_char_index, key.span.end_char_index)
+                values.append(value)
+            except Diagnostic as e:
+                if e.help is None:
+                    e.help = Inline("The resulting expression was ", v, *expr.keys)
+                raise e.with_context(f"while evaluating element {i}").with_context(f"while evaluating index splat expression")
+
+        if on is Unknown:
+            return Unknown.indirect(*values)
+
+        return Array(values)
