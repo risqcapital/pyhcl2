@@ -24,7 +24,7 @@ class Value(ConsoleRenderable):
             case str() as value: return String(value)
             case bool() as value: return Boolean(value)
             case Sequence() as value: return Array([Value.infer(item) for item in value])
-            case Mapping() as value: return Object({Value.infer(k): Value.infer(v) for k, v in value.items()})
+            case Mapping() as value: return Object({String(str(k)): Value.infer(v) for k, v in value.items()})
             case Value() as value: return value
             case _: raise NotImplementedError()
 
