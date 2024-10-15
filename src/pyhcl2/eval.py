@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field
-from typing import Callable, MutableMapping, Self
+from typing import Self
 
 from rich.console import Group
 from rich.text import Text
@@ -117,7 +117,9 @@ class Evaluator:
                 )
 
         # rich.print(Inline(Text("eval", style=STYLE_FUNCTION), "(", expr, "):  ", result, NewLine()))
-        return result.with_span(expr.span)
+        if result.span is None:
+            result = result.with_span(expr.span)
+        return result
 
     def _eval_block(self, block: Block, scope: EvaluationScope) -> Value:
         result: dict[String, Value] = {}

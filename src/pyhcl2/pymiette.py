@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
-from typing import Callable
 
 import rich
 from rich.abc import RichRenderable
@@ -245,6 +245,30 @@ class DiagnosticError(Exception, RichCast):
             ),
             pad=(1, 1),
         )
+
+
+class DiagnosticGroup(ExceptionGroup[DiagnosticError], RichRenderable):
+    def with_source_code(self, source_code: str) -> DiagnosticGroup:
+        return DiagnosticGroup(
+            self.message,
+            [
+                exception.with_source_code(source_code)
+                for exception in self.exceptions
+                if isinstance(exception, DiagnosticError)
+            ],
+        )
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        for exception in self.exceptions:
+            match exception:
+                case DiagnosticError() as diagnostic:
+                    yield diagnostic
+                case DiagnosticGroup() as group:
+                    yield group
+                case _:
+                    raise TypeError("Invalid exception type in group")
 
 
 if __name__ == "__main__":

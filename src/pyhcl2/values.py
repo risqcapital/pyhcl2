@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
-from typing import (
+from collections.abc import (
     Iterable,
     Iterator,
+    Mapping,
     MutableMapping,
     MutableSequence,
+    Sequence,
+)
+from dataclasses import dataclass, field
+from typing import (
     Never,
     Self,
     overload,
@@ -415,8 +418,9 @@ class Array(Value, MutableSequence[Value]):
     def resolve(self) -> Value:
         unknown = []
         for item in self._raw:
-            if isinstance(item, Unknown):
-                unknown.append(item)
+            resolved_item = item.resolve()
+            if isinstance(resolved_item, Unknown):
+                unknown.append(resolved_item)
         if unknown:
             return Unknown.indirect(*unknown)
         return self
@@ -458,8 +462,9 @@ class Object(Value, MutableMapping[String, Value]):
     def resolve(self) -> Value:
         unknown = []
         for key, value in self._raw.items():
-            if isinstance(key, Unknown):
-                unknown.append(key)
+            resolved_value = value.resolve()
+            if isinstance(resolved_value, Unknown):
+                unknown.append(resolved_value)
         if unknown:
             return Unknown.indirect(*unknown)
         return self
@@ -536,12 +541,14 @@ class Unknown(Value):
 
     @staticmethod
     def indirect(*values: Value) -> Unknown:
+        resolved_values = [value.resolve() for value in values]
+
         return Unknown(
             set(),
             set(
                 [
                     ref
-                    for value in values
+                    for value in resolved_values
                     if isinstance(value, Unknown)
                     for ref in value.references
                 ]

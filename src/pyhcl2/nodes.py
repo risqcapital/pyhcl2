@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
+from rich.padding import Padding
 from rich.segment import Segment
 
 from pyhcl2.pymiette import SourceSpan
@@ -377,8 +378,8 @@ class Block(Stmt):
         for label in self.labels:
             if isinstance(label, Identifier):
                 key_parts.append(label.name)
-            elif isinstance(label, Literal) and isinstance(label.value, str):
-                key_parts.append(label.value)
+            elif isinstance(label, Literal) and isinstance(label.value, String):
+                key_parts.append(label.value.raw())
         return tuple(key_parts)
 
     def key(self) -> tuple[str, ...]:
@@ -392,13 +393,9 @@ class Block(Stmt):
             yield Segment(" ")
             yield label
         yield Segment(" {")
-        # yield Segment("\n")
+        yield Segment("\n")
         for stmt in self.body:
-            yield Segment(" ")
-            # yield Segment("  ")
-            yield stmt
-            # yield Segment("\n")
-            yield Segment(" ")
+            yield Padding(stmt, (0, 2))
         yield Segment("}")
 
     @cached_property
