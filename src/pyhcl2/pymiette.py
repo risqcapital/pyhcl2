@@ -40,10 +40,12 @@ class Severity(StrEnum):
             case Severity.ERROR:
                 return Style(color="red")
 
-@dataclass(unsafe_hash=True)
+
+@dataclass(eq=True, frozen=True)
 class SourceSpan:
-    start_char_index: int
-    end_char_index: int
+    start: int
+    end: int
+
 
 @dataclass
 class LabeledSpan:
@@ -82,12 +84,10 @@ class LabeledSourceBlock:
                 label
                 for label in self.labels
                 if src_line_start_index
-                <= label.span.start_char_index
+                <= label.span.start
                 < src_line_start_index + len(line)
             ]
-            labels_in_line = sorted(
-                labels_in_line, key=lambda label: label.span.start_char_index
-            )
+            labels_in_line = sorted(labels_in_line, key=lambda label: label.span.start)
 
             if labels_in_line:
                 for j in range(len(labels_in_line) + 1):
@@ -99,16 +99,16 @@ class LabeledSourceBlock:
                         labels_in_line[: len(labels_in_line) - j + 1]
                     ):
                         before_len = (
-                            label.span.start_char_index
-                            - src_line_start_index
-                            - labels_line_length
+                            label.span.start - src_line_start_index - labels_line_length
                         )
-                        label_len = label.span.end_char_index - label.span.start_char_index
+                        label_len = label.span.end - label.span.start
                         label_before_middle_len = label_len // 2
                         label_after_middle_len = label_len - label_before_middle_len - 1
 
                         style = Style(
-                            color=Color.from_triplet(DIMMED_MONOKAI.ansi_colors[(k % 7) + 1])
+                            color=Color.from_triplet(
+                                DIMMED_MONOKAI.ansi_colors[(k % 7) + 1]
+                            )
                         )
 
                         if j == 0:
@@ -132,6 +132,7 @@ class LabeledSourceBlock:
             src_line_start_index += len(line) + 1
 
         yield Segment("  ╰───\n")
+
 
 @dataclass(kw_only=True)
 class DiagnosticError(Exception, RichCast):
@@ -159,23 +160,27 @@ class DiagnosticError(Exception, RichCast):
         diag.__context__ = self.__context__
         diag.__suppress_context__ = self.__suppress_context__
         if hasattr(self, "__notes__"):
-           for note in self.__notes__:
-               diag.add_note(note)
+            for note in self.__notes__:
+                diag.add_note(note)
         diag.__traceback__ = self.__traceback__
 
         return diag
 
     def __str__(self) -> str:
-        return self.message
+        return str(self.message)
 
-    def __rich_header(self, _console: Console, _options: ConsoleOptions) -> RenderResult:
+    def __rich_header(
+        self, _console: Console, _options: ConsoleOptions
+    ) -> RenderResult:
         if self.code:
             yield Segment(f"{self.severity.title()}: ", style=self.severity.style)
             yield Segment(self.code, style=self.severity.style)
             yield NewLine()
 
-    def __rich_causes(self, _console: Console, _options: ConsoleOptions) -> RenderResult:
-        yield Segment(" × ", style=Style(color="red", bold=True)) # noqa: RUF001
+    def __rich_causes(
+        self, _console: Console, _options: ConsoleOptions
+    ) -> RenderResult:
+        yield Segment(" × ", style=Style(color="red", bold=True))  # noqa: RUF001
         yield self.message
 
         causes: list[Text] = []
@@ -198,7 +203,9 @@ class DiagnosticError(Exception, RichCast):
 
             yield c
 
-    def __rich_snippets(self, _console: Console, _options: ConsoleOptions) -> RenderResult:
+    def __rich_snippets(
+        self, _console: Console, _options: ConsoleOptions
+    ) -> RenderResult:
         if self.source_code is None:
             return
 
@@ -214,13 +221,14 @@ class DiagnosticError(Exception, RichCast):
             yield Segment("help: ", style=Style(color="blue"))
             yield self.help
 
-
-
     def __rich__(self) -> ConsoleRenderable | RichCast | str:
         @dataclass
         class Wrapped(RichRenderable):
             inner: Callable[[Console, ConsoleOptions], RenderResult]
-            def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+
+            def __rich_console__(
+                self, console: Console, options: ConsoleOptions
+            ) -> RenderResult:
                 return self.inner(console, options)
 
         return Padding(
@@ -230,18 +238,16 @@ class DiagnosticError(Exception, RichCast):
                     Group(
                         Wrapped(self.__rich_causes),
                         Wrapped(self.__rich_snippets),
-                        Wrapped(self.__rich_help)
+                        Wrapped(self.__rich_help),
                     ),
-                    pad=(0, 1)
-                )
+                    pad=(0, 1),
+                ),
             ),
             pad=(1, 1),
         )
 
 
-
 if __name__ == "__main__":
-
     try:
         try:
             test = 1 / 0

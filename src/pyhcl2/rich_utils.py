@@ -11,6 +11,7 @@ STYLE_NUMBER = Style(color=Color.from_rgb(42, 172, 184))
 STYLE_STRING = Style(color=Color.from_rgb(106, 171, 115))
 STYLE_FUNCTION = Style(color=Color.from_rgb(136, 136, 198))
 
+
 class Inline:
     def __init__(self, *renderables: RenderableType) -> None:
         self.renderables: list[RenderableType] = []
@@ -24,5 +25,6 @@ class Inline:
                     self.renderables.append(text)
                 case _:
                     self.renderables.append(renderable)
+
     def __rich__(self) -> Group:
         return Group(*self.renderables)

@@ -36,6 +36,7 @@ from pyhcl2.values import Array, Boolean, Integer, Null, Object, String, Unknown
 
 camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
+
 @dataclass
 class EvaluationScope:
     parent: Self | None = None
@@ -63,13 +64,14 @@ class EvaluationScope:
     def child(self) -> EvaluationScope:
         return EvaluationScope(parent=self)
 
+
 @dataclass
 class Evaluator:
     intrinsic_functions: Mapping[str, Callable[..., Value]] = field(
         default_factory=dict
     )
 
-    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value: # noqa: PLR0912
+    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:  # noqa: PLR0912
         match expr:
             case Block() as expr:
                 result = self._eval_block(expr, scope)
@@ -171,10 +173,14 @@ class Evaluator:
     def _eval_literal(expr: Literal, _scope: EvaluationScope) -> Value:
         return expr.value
 
-    def _eval_array_expression(self, expr: ArrayExpression, scope: EvaluationScope) -> Value:
+    def _eval_array_expression(
+        self, expr: ArrayExpression, scope: EvaluationScope
+    ) -> Value:
         return Array([self.eval(item, scope) for item in expr.values])
 
-    def _eval_object_expression(self, obj: ObjectExpression, scope: EvaluationScope) -> Value:
+    def _eval_object_expression(
+        self, obj: ObjectExpression, scope: EvaluationScope
+    ) -> Value:
         result: dict[String, Value] = {}
 
         unknown_keys = []
@@ -206,7 +212,13 @@ class Evaluator:
                         code="pyhcl2::evaluator::object::unsupported_key",
                         message="Unsupported key type in object",
                         labels=[LabeledSpan(key_expr.span, "unsupported key")],
-                        help=Inline("Did you mean `", Parenthesis(key_expr), " = ", value_expr, "`?"),
+                        help=Inline(
+                            "Did you mean `",
+                            Parenthesis(key_expr),
+                            " = ",
+                            value_expr,
+                            "`?",
+                        ),
                     )
             value = self.eval(value_expr, scope)
             if isinstance(value, Unknown):
@@ -229,7 +241,7 @@ class Evaluator:
         return self.eval(paren.expr, scope)
 
     def _eval_binary_expression(
-            self, expr: BinaryExpression, scope: EvaluationScope
+        self, expr: BinaryExpression, scope: EvaluationScope
     ) -> Value:
         operation = {
             "+": "__add__",
@@ -261,7 +273,7 @@ class Evaluator:
             result = operator(right)
 
             if result is NotImplemented:
-                raise NotImplementedError() # noqa: TRY301
+                raise NotImplementedError()  # noqa: TRY301
             else:
                 return result
 
@@ -279,17 +291,21 @@ class Evaluator:
         except ArithmeticError as e:
             right = self.eval(expr.right, scope)
             raise DiagnosticError(
-                    code="pyhcl2::evaluator::binary_expression::arithmetic_error",
-                    message=f"An {e} error occurred",
-                    labels=[
-                        LabeledSpan(expr.left.span, Group(Text("left operand:", end=" "), left)),
-                        LabeledSpan(expr.op.span, str(e)),
-                        LabeledSpan(expr.right.span, Group(Text("right operand:", end=" "), right)),
-                    ],
-                ).with_context("while evaluating binary expression")
+                code="pyhcl2::evaluator::binary_expression::arithmetic_error",
+                message=f"An {e} error occurred",
+                labels=[
+                    LabeledSpan(
+                        expr.left.span, Group(Text("left operand:", end=" "), left)
+                    ),
+                    LabeledSpan(expr.op.span, str(e)),
+                    LabeledSpan(
+                        expr.right.span, Group(Text("right operand:", end=" "), right)
+                    ),
+                ],
+            ).with_context("while evaluating binary expression")
 
     def _eval_unary_expression(
-            self, expr: UnaryExpression, scope: EvaluationScope
+        self, expr: UnaryExpression, scope: EvaluationScope
     ) -> Value:
         value = self.eval(expr.expr, scope)
 
@@ -301,7 +317,7 @@ class Evaluator:
             result = getattr(value, operation)()
 
             if result is NotImplemented:
-                raise NotImplementedError() # noqa: TRY301
+                raise NotImplementedError()  # noqa: TRY301
             else:
                 return result
 
@@ -330,7 +346,7 @@ class Evaluator:
 
     @staticmethod
     def _evaluate_get_attr(
-            on: Value, on_span: SourceSpan, key: GetAttrKey, _scope: EvaluationScope
+        on: Value, on_span: SourceSpan, key: GetAttrKey, _scope: EvaluationScope
     ) -> Value:
         key_value = key.ident.name
 
@@ -360,7 +376,9 @@ class Evaluator:
             )
             # return Unresolved(key.ident.span, [VariableReference((None, key_value,), key.ident.span)])
 
-    def _evaluate_get_index(self, on: Value, on_span: SourceSpan, key: GetIndexKey, scope: EvaluationScope) -> Value:
+    def _evaluate_get_index(
+        self, on: Value, on_span: SourceSpan, key: GetIndexKey, scope: EvaluationScope
+    ) -> Value:
         key_value = self.eval(key.expr, scope)
 
         try:
@@ -440,7 +458,7 @@ class Evaluator:
                 return Unknown.indirect(
                     condition,
                     self.eval(expr.then_expr, scope),
-                    self.eval(expr.else_expr, scope)
+                    self.eval(expr.else_expr, scope),
                 )
             case Boolean(True):
                 return self.eval(expr.then_expr, scope)
@@ -453,7 +471,9 @@ class Evaluator:
                     labels=[LabeledSpan(expr.cond.span, condition.type_name)],
                 )
 
-    def _eval_for_tuple_expression(self, expr: ForTupleExpression, scope: EvaluationScope) -> Value:
+    def _eval_for_tuple_expression(
+        self, expr: ForTupleExpression, scope: EvaluationScope
+    ) -> Value:
         collection = self.eval(expr.collection, scope)
         results: list[Value] = []
 
@@ -463,7 +483,7 @@ class Evaluator:
             case Object(obj):
                 iterator = obj.items()
             case Array(array):
-                iterator = [(Integer(k), v) for k,v in enumerate(array)]
+                iterator = [(Integer(k), v) for k, v in enumerate(array)]
             case Unknown() as collection:
                 unknown = collection.indirect()
                 iterator = [(unknown, unknown)]
@@ -481,12 +501,16 @@ class Evaluator:
                 child_scope[expr.key_ident.name] = k
 
             condition = (
-                self.eval(expr.condition, child_scope) if expr.condition is not None else Boolean(True)
+                self.eval(expr.condition, child_scope)
+                if expr.condition is not None
+                else Boolean(True)
             )
 
             match condition:
                 case Unknown() as condition:
-                    results.append(Unknown.indirect(condition, self.eval(expr.value, child_scope)))
+                    results.append(
+                        Unknown.indirect(condition, self.eval(expr.value, child_scope))
+                    )
                 case Boolean(True):
                     result = self.eval(expr.value, child_scope)
                     match result:
@@ -506,7 +530,9 @@ class Evaluator:
 
         return Array(results)
 
-    def _eval_for_object_expression(self, expr: ForObjectExpression, scope: EvaluationScope) -> Value: # noqa: PLR0912
+    def _eval_for_object_expression(  # noqa: PLR0912
+        self, expr: ForObjectExpression, scope: EvaluationScope
+    ) -> Value:
         if expr.grouping_mode:
             raise DiagnosticError(
                 code="pyhcl2::evaluator::for_object_expression::unsupported_grouping_mode",
@@ -524,7 +550,7 @@ class Evaluator:
             case Object(obj):
                 iterator = obj.items()
             case Array(array):
-                iterator = [(Integer(k), v) for k,v in enumerate(array)]
+                iterator = [(Integer(k), v) for k, v in enumerate(array)]
             case Unknown() as collection:
                 unknown = collection.indirect()
                 iterator = [(unknown, unknown)]
@@ -542,21 +568,29 @@ class Evaluator:
                 child_scope[expr.key_ident.name] = k
 
             condition = (
-                self.eval(expr.condition, child_scope) if expr.condition is not None else Boolean(True)
+                self.eval(expr.condition, child_scope)
+                if expr.condition is not None
+                else Boolean(True)
             )
 
             match condition:
                 case Unknown() as condition:
-                    unknown_blockers.append(Unknown.indirect(
-                        condition,
-                        self.eval(expr.key, child_scope),
-                        self.eval(expr.value, child_scope)
-                    ))
+                    unknown_blockers.append(
+                        Unknown.indirect(
+                            condition,
+                            self.eval(expr.key, child_scope),
+                            self.eval(expr.value, child_scope),
+                        )
+                    )
                 case Boolean(True):
                     key = self.eval(expr.key, child_scope)
                     match key:
                         case Unknown() as key:
-                            unknown_blockers.append(Unknown.indirect(key, self.eval(expr.value, child_scope)))
+                            unknown_blockers.append(
+                                Unknown.indirect(
+                                    key, self.eval(expr.value, child_scope)
+                                )
+                            )
                         case String() as key:
                             results[key] = self.eval(expr.value, child_scope)
                         case _:
@@ -580,7 +614,6 @@ class Evaluator:
 
         return Object(results)
 
-
     def _eval_attr_splat(self, expr: AttrSplat, scope: EvaluationScope) -> Value:
         on = self.eval(expr.on, scope)
 
@@ -600,12 +633,14 @@ class Evaluator:
                 value = v
                 for key in expr.keys:
                     value = self._evaluate_get_attr(value, span, key, scope)
-                    span = SourceSpan(span.start_char_index, key.span.end_char_index)
+                    span = SourceSpan(span.start, key.span.end)
                 values.append(value)
             except DiagnosticError as e:
                 if e.help is None:
                     e.help = Inline("The resulting expression was ", v, *expr.keys)
-                raise e.with_context(f"while evaluating element {i}").with_context("while evaluating attribute splat expression")
+                raise e.with_context(f"while evaluating element {i}").with_context(
+                    "while evaluating attribute splat expression"
+                )
         if isinstance(on, Unknown):
             return Unknown.indirect(*values)
 
@@ -634,12 +669,14 @@ class Evaluator:
                             value = self._evaluate_get_attr(value, span, key, scope)
                         case GetIndexKey():
                             value = self._evaluate_get_index(value, span, key, scope)
-                    span = SourceSpan(span.start_char_index, key.span.end_char_index)
+                    span = SourceSpan(span.start, key.span.end)
                 values.append(value)
             except DiagnosticError as e:
                 if e.help is None:
                     e.help = Inline("The resulting expression was ", v, *expr.keys)
-                raise e.with_context(f"while evaluating element {i}").with_context("while evaluating index splat expression")
+                raise e.with_context(f"while evaluating element {i}").with_context(
+                    "while evaluating index splat expression"
+                )
 
         if isinstance(on, Unknown):
             return Unknown.indirect(*values)

@@ -73,21 +73,21 @@ class Value(ConsoleRenderable):
 
     def __not_equals__(self, other: Value) -> Boolean:
         try:
-            return Boolean(
-                not (
-                    getattr(self, "__equals__")(other).raw()
-                )
-            )
+            return Boolean(not (getattr(self, "__equals__")(other).raw()))
         except AttributeError:
             return Boolean(True)
+
 
 @dataclass(eq=True, frozen=True)
 class Null(Value):
     def raw(self) -> None:
         return None
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment("null", style=STYLE_KEYWORDS)
+
 
 @dataclass(eq=True, frozen=True)
 class Integer(Value):
@@ -189,8 +189,11 @@ class Integer(Value):
     def __neg__(self) -> Integer:
         return Integer(-self._raw)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment(str(self._raw), style=STYLE_NUMBER)
+
 
 @dataclass(eq=True, frozen=True)
 class String(Value):
@@ -220,8 +223,11 @@ class String(Value):
             case _:
                 return Boolean(False)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment(repr(self._raw), style=STYLE_STRING)
+
 
 @dataclass(eq=True, frozen=True)
 class Float(Value):
@@ -323,8 +329,11 @@ class Float(Value):
     def __neg__(self) -> Float:
         return Float(-self._raw)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment(str(self._raw), style=STYLE_NUMBER)
+
 
 @dataclass(eq=True, frozen=True)
 class Boolean(Value):
@@ -357,8 +366,11 @@ class Boolean(Value):
             case _:
                 return Boolean(False)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment(str(self._raw).lower(), style=STYLE_KEYWORDS)
+
 
 @dataclass(eq=True, frozen=True)
 class Array(Value, MutableSequence[Value]):
@@ -409,7 +421,9 @@ class Array(Value, MutableSequence[Value]):
             return Unknown.indirect(*unknown)
         return self
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment("[")
         for i, item in enumerate(self._raw):
             yield item
@@ -417,6 +431,7 @@ class Array(Value, MutableSequence[Value]):
                 yield Segment(", ")
 
         yield Segment("]")
+
 
 @dataclass(eq=True, frozen=True)
 class Object(Value, MutableMapping[String, Value]):
@@ -428,7 +443,7 @@ class Object(Value, MutableMapping[String, Value]):
     def __getitem__(self, key: String) -> Value:
         return self._raw[key]
 
-    def __delitem__(self, key: String)-> None:
+    def __delitem__(self, key: String) -> None:
         del self._raw[key]
 
     def __len__(self) -> int:
@@ -449,7 +464,9 @@ class Object(Value, MutableMapping[String, Value]):
             return Unknown.indirect(*unknown)
         return self
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment("{")
         for i, (key, value) in enumerate(self._raw.items()):
             yield Segment(key.raw(), style=STYLE_PROPERTY_NAME)
@@ -460,10 +477,12 @@ class Object(Value, MutableMapping[String, Value]):
 
         yield Segment("}")
 
+
 @dataclass(eq=True, frozen=True)
 class VariableReference:
     key: tuple[str | None, ...]
     span: SourceSpan
+
 
 @dataclass(eq=True, frozen=True)
 class Unknown(Value):
@@ -475,7 +494,13 @@ class Unknown(Value):
         raise DiagnosticError(
             code="pyhcl2::evaluator::unknown_variable",
             message=Inline("Failed to evaluate expression due to unknown variables"),
-            labels=[LabeledSpan(ref.span, f"{ref.key[-1]} could not be resolved ({".".join([k if k else "?" for k in ref.key])})") for ref in self.references],
+            labels=[
+                LabeledSpan(
+                    ref.span,
+                    f"{ref.key[-1]} could not be resolved ({".".join([k if k else "?" for k in ref.key])})",
+                )
+                for ref in self.references
+            ],
         )
 
     def raw(self) -> Never:
@@ -485,9 +510,13 @@ class Unknown(Value):
     def references(self) -> set[VariableReference]:
         return self.direct_references | self.indirect_references
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         yield Segment("<")
-        yield Segment("Unknown due to missing variables, direct: ", style=STYLE_KEYWORDS)
+        yield Segment(
+            "Unknown due to missing variables, direct: ", style=STYLE_KEYWORDS
+        )
         for i, ref in enumerate(self.direct_references):
             for j, key in enumerate(ref.key):
                 yield Segment(key if key else "?")
@@ -509,14 +538,40 @@ class Unknown(Value):
     def indirect(*values: Value) -> Unknown:
         return Unknown(
             set(),
-            set([ref for value in values if isinstance(value, Unknown) for ref in value.references]),
+            set(
+                [
+                    ref
+                    for value in values
+                    if isinstance(value, Unknown)
+                    for ref in value.references
+                ]
+            ),
         )
 
     def direct(self, span: SourceSpan, key: str) -> Unknown:
         if self.direct_references:
-            direct_refs = set([VariableReference((*ref.key, key,), span) for ref in self.direct_references])
+            direct_refs = set(
+                [
+                    VariableReference(
+                        (
+                            *ref.key,
+                            key,
+                        ),
+                        span,
+                    )
+                    for ref in self.direct_references
+                ]
+            )
         else:
-            direct_refs = {VariableReference((None, key,), span)}
+            direct_refs = {
+                VariableReference(
+                    (
+                        None,
+                        key,
+                    ),
+                    span,
+                )
+            }
 
         return Unknown(direct_refs, self.references)
 

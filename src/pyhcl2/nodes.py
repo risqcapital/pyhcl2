@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import typing as t
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
@@ -21,14 +21,7 @@ from pyhcl2.values import String, Value
 class Node(ConsoleRenderable):
     """Base class for HCL2 AST nodes."""
 
-    start_pos: int | None = None
-    end_pos: int | None = None
-
-    @property
-    def span(self) -> SourceSpan | None:
-        if self.start_pos is None or self.end_pos is None:
-            return None
-        return SourceSpan(self.start_pos, self.end_pos)
+    span: SourceSpan = field(default=SourceSpan(-1, -1), compare=False, hash=False)
 
 
 class Expression(Node):
@@ -40,7 +33,7 @@ class Literal(Expression):
     value: Value
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.value
 
@@ -50,7 +43,7 @@ class ArrayExpression(Expression):
     values: list[Expression]
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("[")
         for i, value in enumerate(self.values):
@@ -65,7 +58,7 @@ class ObjectExpression(Expression):
     fields: dict[Expression, Expression]
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("{")
         for i, (key, value) in enumerate(self.fields.items()):
@@ -85,10 +78,13 @@ class Identifier(Expression):
     name: str
 
     def as_string(self) -> String:
-        return String(self.name, span=SourceSpan(self.start_pos, self.end_pos) if self.start_pos is not None and self.end_pos is not None else None)
+        return String(
+            self.name,
+            span=self.span,
+        )
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.name)
 
@@ -101,13 +97,13 @@ class FunctionCall(Expression):
 
     @property
     def args_span(self) -> SourceSpan:
-        return SourceSpan(self.ident.span.end_char_index, self.span.end_char_index)
+        return SourceSpan(self.ident.span.end, self.span.end)
 
     def __post_init__(self) -> None:
         assert all(isinstance(arg, Expression) for arg in self.args), self.args
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.ident.name, style=STYLE_FUNCTION)
         yield Segment("(")
@@ -125,7 +121,7 @@ class GetAttrKey(Node):
     ident: Identifier
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(".")
         yield self.ident
@@ -136,7 +132,7 @@ class GetIndexKey(Node):
     expr: Expression
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("[")
         yield self.expr
@@ -149,7 +145,7 @@ class GetAttr(Expression):
     key: GetAttrKey
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.on
         yield self.key
@@ -161,7 +157,7 @@ class GetIndex(Expression):
     key: GetIndexKey
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.on
         yield self.key
@@ -173,7 +169,7 @@ class AttrSplat(Expression):
     keys: list[GetAttrKey] = dataclasses.field(default_factory=list)
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.on
         yield Segment(".*")
@@ -186,7 +182,7 @@ class IndexSplat(Expression):
     keys: list[GetAttrKey | GetIndexKey] = dataclasses.field(default_factory=list)
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.on
         yield Segment("[*]")
@@ -198,7 +194,7 @@ class UnaryOperator(Node):
     type: t.Literal["-", "!"]
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.type)
 
@@ -209,7 +205,7 @@ class UnaryExpression(Expression):
     expr: Expression
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.op
         yield self.expr
@@ -222,7 +218,7 @@ class BinaryOperator(Node):
     ]
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.type)
 
@@ -234,7 +230,7 @@ class BinaryExpression(Expression):
     right: Expression
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.left
         yield Segment(" ")
@@ -250,7 +246,7 @@ class Conditional(Expression):
     else_expr: Expression
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.cond
         yield Segment(" ? ")
@@ -264,7 +260,7 @@ class Parenthesis(Expression):
     expr: Expression
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("(")
         yield self.expr
@@ -280,7 +276,7 @@ class ForTupleExpression(Expression):
     condition: Expression | None
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("[")
         yield Segment("for ", style=STYLE_KEYWORDS)
@@ -309,7 +305,7 @@ class ForObjectExpression(Expression):
     grouping_mode: bool = dataclasses.field(default=False)
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("{")
         yield Segment("for ", style=STYLE_KEYWORDS)
@@ -349,7 +345,7 @@ class Attribute(Stmt):
         return (self.key.name,)
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.key.name, style=STYLE_PROPERTY_NAME)
         yield Segment(" = ")
@@ -389,7 +385,7 @@ class Block(Stmt):
         return self.key_path
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.type.name, style=STYLE_KEYWORDS)
         for label in self.labels:
@@ -427,7 +423,7 @@ class Module(Node):
             stmt
             for stmt in self.body
             if isinstance(stmt, Block)
-               and (block_type is None or stmt.type == block_type)
+            and (block_type is None or stmt.type == block_type)
         ]
 
     def get_block(self, block_type: str, *labels: str) -> Block | None:
@@ -447,8 +443,15 @@ class Module(Node):
         return blocks[0]
 
     def __rich_console__(
-            self, console: Console, options: ConsoleOptions
+        self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         for stmt in self.body:
             yield stmt
             yield Segment("\n")
+
+
+class VarArgsMarker(Node):
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        yield Segment("...")

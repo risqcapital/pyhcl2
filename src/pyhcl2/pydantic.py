@@ -4,9 +4,9 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from pyhcl2 import Attribute, Block
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.exceptions import HclExceptionGroup, HCLModelValidationError
+from pyhcl2.nodes import Attribute, Block
 
 Model = TypeVar("Model", bound=BaseModel)
 

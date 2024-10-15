@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
-from typing import Any
+from typing import TypeVar, cast
 
 from lark import Discard, Token, Transformer, v_args
 from lark.tree import Meta
@@ -27,29 +27,31 @@ from pyhcl2.nodes import (
     Identifier,
     IndexSplat,
     Literal,
+    Node,
     ObjectExpression,
     Parenthesis,
+    Stmt,
     UnaryExpression,
     UnaryOperator,
+    VarArgsMarker,
 )
+from pyhcl2.pymiette import SourceSpan
 from pyhcl2.values import Boolean, Float, Integer, Null, String
 
 HEREDOC_PATTERN = re.compile(r"<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S)
 HEREDOC_TRIM_PATTERN = re.compile(
     r"<<-([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S
 )
-
-
-class EllipsisMarker:
-    pass
+T = TypeVar("T")
 
 
 # noinspection PyMethodMayBeStatic
 class ToAstTransformer(Transformer):
-    def __binary_op(self, args: list[Token]) -> BinaryOperator:
-        return BinaryOperator(
-            type=args[0].value, start_pos=args[0].start_pos, end_pos=args[0].end_pos
-        )
+    @v_args(inline=True)
+    def __binary_op(self, op: Token) -> BinaryOperator:
+        assert op.start_pos is not None
+        assert op.end_pos is not None
+        return BinaryOperator(type=op.value, span=SourceSpan(op.start_pos, op.end_pos))
 
     add_op = __binary_op
     mul_op = __binary_op
@@ -58,14 +60,15 @@ class ToAstTransformer(Transformer):
     or_op = __binary_op
     and_op = __binary_op
 
-    def __binary_expression(self, args: list[Any]) -> BinaryExpression:
-        args = self.strip_new_line_tokens(args)
+    @v_args(inline=True)
+    def __binary_expression(
+        self, left: Expression, op: BinaryOperator, right: Expression
+    ) -> BinaryExpression:
         return BinaryExpression(
-            args[1],
-            args[0],
-            args[2],
-            start_pos=args[0].start_pos,
-            end_pos=args[2].end_pos,
+            op,
+            left,
+            right,
+            span=SourceSpan(left.span.start, right.span.end),
         )
 
     term = __binary_expression
@@ -75,234 +78,247 @@ class ToAstTransformer(Transformer):
     and_test = __binary_expression
     or_test = __binary_expression
 
-    def __unary_op(self, args: list[Token]) -> UnaryOperator:
-        return UnaryOperator(
-            type=args[0].value, start_pos=args[0].start_pos, end_pos=args[0].end_pos
-        )
+    @v_args(inline=True)
+    def __unary_op(self, op: Token) -> UnaryOperator:
+        assert op.start_pos is not None
+        assert op.end_pos is not None
+        return UnaryOperator(type=op.value, span=SourceSpan(op.start_pos, op.end_pos))
 
     not_op = __unary_op
     neg_op = __unary_op
 
-    def __unary_expression(self, args: list[Any]) -> UnaryExpression:
-        args = self.strip_new_line_tokens(args)
-        return UnaryExpression(
-            args[0], args[1], start_pos=args[0].start_pos, end_pos=args[1].end_pos
-        )
+    @v_args(inline=True)
+    def __unary_expression(
+        self, op: UnaryOperator, expr: Expression
+    ) -> UnaryExpression:
+        return UnaryExpression(op, expr, span=SourceSpan(op.span.start, expr.span.end))
 
     not_test = __unary_expression
     neg = __unary_expression
 
-    def conditional(self, args: list[Any]) -> Conditional:
+    @v_args(inline=True)
+    def conditional(
+        self, condition: Expression, then_expr: Expression, else_expr: Expression
+    ) -> Conditional:
         return Conditional(
-            args[0],
-            args[1],
-            args[2],
-            start_pos=args[0].start_pos,
-            end_pos=args[2].end_pos,
+            condition,
+            then_expr,
+            else_expr,
+            span=SourceSpan(condition.span.start, else_expr.span.end),
         )
+
+    @v_args(inline=True, meta=True)
+    def get_attr(self, meta: Meta, identifier: Identifier) -> GetAttrKey:
+        return GetAttrKey(identifier, span=SourceSpan(meta.start_pos, meta.end_pos))
+
+    @v_args(inline=True)
+    def get_attr_expr_term(self, on: Expression, key: GetAttrKey) -> GetAttr:
+        return GetAttr(on, key, span=SourceSpan(on.span.start, key.span.end))
 
     @v_args(meta=True)
-    def get_attr(self, meta: Meta, args: list[Any]) -> GetAttrKey:
-        return GetAttrKey(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
-
-    def get_attr_expr_term(self, args: list[Any]) -> GetAttr:
-        get_attr: GetAttrKey = args[1]
-        return GetAttr(
-            args[0], get_attr, start_pos=args[0].start_pos, end_pos=get_attr.end_pos
-        )
-
-    def float_lit(self, args: list[Token]) -> Literal:
+    def float_lit(self, meta: Meta, args: list[Token]) -> Literal:
         return Literal(
             Float(float("".join([str(arg) for arg in args]))),
-            start_pos=args[0].start_pos,
-            end_pos=args[-1].end_pos,
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True, inline=True)
     def null_lit(self, meta: Meta) -> Literal:
-        return Literal(Null(), start_pos=meta.start_pos, end_pos=meta.end_pos)
+        return Literal(Null(), span=SourceSpan(meta.start_pos, meta.end_pos))
 
-    def int_lit(self, args: list[Token]) -> Literal:
+    @v_args(meta=True)
+    def int_lit(self, meta: Meta, args: list[Token]) -> Literal:
         return Literal(
             Integer(int("".join([str(arg) for arg in args]))),
-            start_pos=args[0].start_pos,
-            end_pos=args[-1].end_pos,
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
-    def expr_term(self, args: list[Any]) -> Any:  # noqa: ANN401
-        args = self.strip_new_line_tokens(args)
-        return args[0]
+    @v_args(inline=True)
+    def expr_term(self, expr: Expression) -> Expression:
+        return expr
 
-    def bool_lit(self, value: list[Token]) -> Literal:
-        match value[0].value.lower():
+    @v_args(inline=True)
+    def bool_lit(self, token: Token) -> Literal:
+        assert token.start_pos is not None
+        assert token.end_pos is not None
+        match token.value.lower():
             case "true":
                 return Literal(
-                    Boolean(True), start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                    Boolean(True),
+                    span=SourceSpan(token.start_pos, token.end_pos),
                 )
             case "false":
                 return Literal(
-                    Boolean(False), start_pos=value[0].start_pos, end_pos=value[0].end_pos
+                    Boolean(False),
+                    span=SourceSpan(token.start_pos, token.end_pos),
                 )
-        raise ValueError(f"Invalid boolean value: {value[0].value}")
+        raise ValueError(f"Invalid boolean value: {token.value}")
 
-    def string_lit(self, value: list[Token]) -> Literal:
+    @v_args(inline=True)
+    def string_lit(self, token: Token) -> Literal:
+        assert token.start_pos is not None
+        assert token.end_pos is not None
         return Literal(
-            String(value[0].value[1:-1]), start_pos=value[0].start_pos, end_pos=value[0].end_pos
+            String(token.value[1:-1]),
+            span=SourceSpan(token.start_pos, token.end_pos),
         )
 
-    def identifier(self, value: list[Token]) -> Expression:
-        return Identifier(
-            value[0].value, start_pos=value[0].start_pos, end_pos=value[0].end_pos
-        )
+    @v_args(inline=True)
+    def identifier(self, ident: Token) -> Expression:
+        assert ident.start_pos is not None
+        assert ident.end_pos is not None
+        return Identifier(ident.value, span=SourceSpan(ident.start_pos, ident.end_pos))
 
-    def attribute(self, args: list[Expression]) -> Attribute:
-        args = self.strip_new_line_tokens(args)
-        assert isinstance(args[0], Identifier)
-        return Attribute(
-            args[0], args[1], start_pos=args[0].start_pos, end_pos=args[1].end_pos
-        )
+    @v_args(inline=True)
+    def attribute(self, ident: Identifier, expr: Expression) -> Attribute:
+        return Attribute(ident, expr, span=SourceSpan(ident.span.start, expr.span.end))
 
-    def body(self, args: list[Any]) -> list[Any]:
+    def body(self, args: list[Stmt]) -> list[Stmt]:
         return args
 
     @v_args(meta=True)
-    def block(self, meta: Meta, args: list[Any]) -> Block:
-        args = self.strip_new_line_tokens(args)
+    def block(self, meta: Meta, args: list[Identifier | Literal | Stmt]) -> Block:
+        type_key = cast(Identifier, args[0])
+        labels = cast(list[Identifier | Literal], args[1:-1])
+        body = cast(list[Stmt], args[-1])
         return Block(
-            args[0],
-            args[1:-1],
-            args[-1],
-            start_pos=meta.start_pos,
-            end_pos=meta.end_pos,
+            type_key,
+            labels,
+            body,
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True)
-    def object(self, meta: Meta, args: list[list[Expression]]) -> ObjectExpression:
-        args = self.strip_new_line_tokens(args)
-        fields = {kv[0]: kv[1] for kv in args}
-        return ObjectExpression(fields, start_pos=meta.start_pos, end_pos=meta.end_pos)
+    def object(
+        self, meta: Meta, args: list[tuple[Expression, Expression]]
+    ) -> ObjectExpression:
+        return ObjectExpression(
+            {kv[0]: kv[1] for kv in args}, span=SourceSpan(meta.start_pos, meta.end_pos)
+        )
 
-    def object_elem(self, args: list[Expression]) -> list[Expression]:
-        return args
-
-    @v_args(meta=True)
-    def tuple(self, meta: Meta, args: list[Any]) -> ArrayExpression:
-        args = self.strip_new_line_tokens(args)
-        return ArrayExpression(args, start_pos=meta.start_pos, end_pos=meta.end_pos)
-
-    @v_args(meta=True)
-    def paren_expr(self, meta: Meta, args: list[Expression]) -> Parenthesis:
-        args = self.strip_new_line_tokens(args)
-        return Parenthesis(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
+    @v_args(inline=True)
+    def object_elem(
+        self, key: Expression, value: Expression
+    ) -> tuple[Expression, Expression]:
+        return key, value
 
     @v_args(meta=True)
-    def function_call(self, meta: Meta, args: list[Any]) -> FunctionCall:
-        args = self.strip_new_line_tokens(args)
-        var_args = False
-        arguments = args[1] if len(args) > 1 else []
-        if len(arguments) > 0 and isinstance(arguments[-1], EllipsisMarker):
-            arguments = arguments[:-1]
-            var_args = True
+    def array(self, meta: Meta, values: list[Expression]) -> ArrayExpression:
+        return ArrayExpression(values, span=SourceSpan(meta.start_pos, meta.end_pos))
 
+    @v_args(meta=True, inline=True)
+    def paren_expr(self, meta: Meta, expr: Expression) -> Parenthesis:
+        return Parenthesis(expr, span=SourceSpan(meta.start_pos, meta.end_pos))
+
+    @v_args(meta=True, inline=True)
+    def function_call(
+        self,
+        meta: Meta,
+        ident: Identifier,
+        args: tuple[list[Expression], VarArgsMarker | None] = ([], None),
+    ) -> FunctionCall:
         return FunctionCall(
-            args[0], arguments, var_args, start_pos=meta.start_pos, end_pos=meta.end_pos
+            ident,
+            args[0],
+            args[1] is not None,
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
     def arguments(
-        self, args: list[Expression | EllipsisMarker]
-    ) -> list[Expression | EllipsisMarker]:
-        args = self.strip_new_line_tokens(args)
+        self, args: list[Expression]
+    ) -> tuple[list[Expression], VarArgsMarker | None]:
+        if len(args) > 0 and isinstance(args[-1], VarArgsMarker):
+            return args[:-1], cast(VarArgsMarker, args[-1])
+        return args, None
+
+    @v_args(meta=True, inline=True)
+    def ellipsis(self, meta: Meta) -> VarArgsMarker:
+        return VarArgsMarker(span=SourceSpan(meta.start_pos, meta.end_pos))
+
+    @v_args(meta=True, inline=True)
+    def index(self, meta: Meta, expr: Expression) -> GetIndexKey:
+        return GetIndexKey(expr, span=SourceSpan(meta.start_pos, meta.end_pos))
+
+    @v_args(meta=True, inline=True)
+    def index_expr_term(
+        self, meta: Meta, on: Expression, index: GetIndexKey
+    ) -> GetIndex:
+        return GetIndex(on, index, span=SourceSpan(meta.start_pos, meta.end_pos))
+
+    def attr_splat(self, args: list[Node]) -> list[Node]:
         return args
 
-    def ellipsis(self, args: list[Expression]) -> EllipsisMarker:
-        return EllipsisMarker()
+    @v_args(meta=True, inline=True)
+    def attr_splat_expr_term(
+        self, meta: Meta, on: Expression, keys: list[GetAttrKey]
+    ) -> AttrSplat:
+        return AttrSplat(on, keys, span=SourceSpan(meta.start_pos, meta.end_pos))
 
-    @v_args(meta=True)
-    def index(self, meta: Meta, args: list[Expression]) -> GetIndexKey:
-        return GetIndexKey(args[0], start_pos=meta.start_pos, end_pos=meta.end_pos)
-
-    @v_args(meta=True)
-    def index_expr_term(self, meta: Meta, args: list[Any]) -> GetIndex:
-        index: GetIndexKey = args[1]
-        return GetIndex(args[0], index, start_pos=meta.start_pos, end_pos=meta.end_pos)
-
-    def attr_splat(self, args: list[Any]) -> list[Any]:
+    def full_splat(self, args: list[Node]) -> list[Node]:
         return args
 
-    @v_args(meta=True)
-    def attr_splat_expr_term(self, meta: Meta, args: list[Any]) -> AttrSplat:
-        return AttrSplat(*args, start_pos=meta.start_pos, end_pos=meta.end_pos)
+    @v_args(meta=True, inline=True)
+    def full_splat_expr_term(
+        self, meta: Meta, on: Expression, keys: list[GetAttrKey | GetIndexKey]
+    ) -> IndexSplat:
+        return IndexSplat(on, keys, span=SourceSpan(meta.start_pos, meta.end_pos))
 
-    def full_splat(self, args: list[Any]) -> list[Any]:
-        return args
-
-    @v_args(meta=True)
-    def full_splat_expr_term(self, meta: Meta, args: list[Any]) -> IndexSplat:
-        return IndexSplat(*args, start_pos=meta.start_pos, end_pos=meta.end_pos)
-
-    def new_line_or_comment(self, _args: list) -> _DiscardType:
+    def new_line_or_comment(self, _args: list[Node | Token]) -> _DiscardType:
         return Discard
 
-    def new_line_and_or_comma(self, _args: list) -> _DiscardType:
+    def new_line_and_or_comma(self, _args: list[Node | Token]) -> _DiscardType:
         return Discard
 
-    def start(self, args: list) -> dict:
-        args = self.strip_new_line_tokens(args)
+    def start(self, args: list[Node | Token]) -> Node | Token:
         return args[0]
 
     start_expr = start
     start_expr_or_stmt = start
 
-    def strip_new_line_tokens(self, args: list) -> list:
-        return [arg for arg in args if arg != "\n" and not arg == Discard]
+    def for_intro(
+        self, args: list[Node | Token]
+    ) -> tuple[Identifier | None, Identifier, Expression]:
+        return (
+            cast(Identifier, args[0]) if len(args) == 3 else None,
+            cast(Identifier, args[1 if len(args) == 3 else 0]),
+            cast(Expression, args[-1]),
+        )
 
-    def for_intro(self, args: list[Any]) -> list[Any]:
-        args = self.strip_new_line_tokens(args)
-        return args
+    @v_args(inline=True)
+    def for_cond(self, condition: Expression) -> Expression:
+        return condition
 
-    def for_cond(self, args: list[Any]) -> Expression:
-        return args[0]
-
-    # noinspection DuplicatedCode
-    @v_args(meta=True)
-    def for_tuple_expr(self, meta: Meta, args: list[Any]) -> ForTupleExpression:
-        args = self.strip_new_line_tokens(args)
-        for_intro = args[0]
-        value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
-        key_ident = for_intro[0] if len(for_intro) == 3 else None
-        collection = for_intro[-1]
-        expression = args[1]
-        condition = args[2] if len(args) == 3 else None
-
+    @v_args(meta=True, inline=True)
+    def for_tuple_expr(
+        self,
+        meta: Meta,
+        for_intro: tuple[Identifier | None, Identifier, Expression],
+        expression: Expression,
+        condition: Expression | None = None,
+    ) -> ForTupleExpression:
+        key_ident, value_ident, collection = for_intro
         return ForTupleExpression(
             key_ident,
             value_ident,
             collection,
             expression,
             condition,
-            start_pos=meta.start_pos,
-            end_pos=meta.end_pos,
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
-    # noinspection DuplicatedCode
-    @v_args(meta=True)
-    def for_object_expr(self, meta: Meta, args: list[Any]) -> ForObjectExpression:
-        args = self.strip_new_line_tokens(args)
-        for_intro = args[0]
-        value_ident = for_intro[1] if len(for_intro) == 3 else for_intro[0]
-        key_ident = for_intro[0] if len(for_intro) == 3 else None
-        collection = for_intro[-1]
-        key_expression = args[1]
-        value_expression = args[2]
-
-        grouping_mode = isinstance(args[-1], EllipsisMarker) or isinstance(
-            args[-2], EllipsisMarker
-        )
-
-        condition = (
-            args[-1]
-            if len(args) >= 4 and not isinstance(args[-1], EllipsisMarker)
-            else None
+    @v_args(meta=True, inline=True)
+    def for_object_expr(
+        self,
+        meta: Meta,
+        for_intro: tuple[Identifier | None, Identifier, Expression],
+        key_expression: Expression,
+        value_expression: Expression,
+        *args: VarArgsMarker | Expression,
+    ) -> ForObjectExpression:
+        key_ident, value_ident, collection = for_intro
+        grouping_mode = any(isinstance(arg, VarArgsMarker) for arg in args)
+        condition: Expression | None = next(
+            (arg for arg in args if isinstance(arg, Expression)), None
         )
 
         return ForObjectExpression(
@@ -313,21 +329,21 @@ class ToAstTransformer(Transformer):
             value_expression,
             condition,
             grouping_mode,
-            start_pos=meta.start_pos,
-            end_pos=meta.end_pos,
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True)
-    def heredoc_template(self, meta: Meta, args: list[Any]) -> Literal:
+    def heredoc_template(self, meta: Meta, args: list[Node | Token]) -> Literal:
         match = HEREDOC_PATTERN.match(str(args[0]))
         if not match:
             raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
         return Literal(
-            String(f'"{match.group(2)}"'), start_pos=meta.start_pos, end_pos=meta.end_pos
+            String(f'"{match.group(2)}"'),
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True)
-    def heredoc_template_trim(self, meta: Meta, args: list[Any]) -> Literal:
+    def heredoc_template_trim(self, meta: Meta, args: list[Node | Token]) -> Literal:
         match = HEREDOC_TRIM_PATTERN.match(str(args[0]))
         if not match:
             raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
@@ -345,5 +361,6 @@ class ToAstTransformer(Transformer):
         lines = [line[min_spaces:] for line in lines]
 
         return Literal(
-            String(f'"{"\n".join(lines)}"'), start_pos=meta.start_pos, end_pos=meta.end_pos
+            String(f'"{"\n".join(lines)}"'),
+            span=SourceSpan(meta.start_pos, meta.end_pos),
         )

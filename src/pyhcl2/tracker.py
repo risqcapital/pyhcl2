@@ -13,8 +13,9 @@ from typing import (
     Self,
 )
 
-from pyhcl2 import Node, parse_expr
 from pyhcl2.eval import EvaluationScope, Evaluator
+from pyhcl2.nodes import Node
+from pyhcl2.parse import parse_expr
 
 
 class IntrinsicFunctionTracker(Mapping):
@@ -123,22 +124,18 @@ def resolve_variable_references(node: Node) -> set[tuple[str, ...]]:
     visited_variables_tracker = VisitedVariablesTracker()
     # noinspection PyTypeChecker
     scope = EvaluationScope(variables=visited_variables_tracker)
-    Evaluator(
-        can_short_circuit=False, intrinsic_functions=IntrinsicFunctionTracker()
-    ).eval(node, scope)
+    Evaluator(intrinsic_functions=IntrinsicFunctionTracker()).eval(node, scope)
 
     return visited_variables_tracker.get_visited_variables()
 
 
 if __name__ == "__main__":
-
     block_under_test = parse_expr("a + b + c")
 
     variable_references = resolve_variable_references(block_under_test)
 
     for dirty_child in variable_references:
         print(dirty_child)
-
 
     # ast = parse_file(open(Path(sys.argv[1])))
     #

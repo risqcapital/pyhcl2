@@ -10,9 +10,14 @@ from pyhcl2.values import Integer, Value
 
 
 def eval_hcl(expr: str, **kwargs: object) -> object:
-    return Evaluator().eval(parse_expr(expr), EvaluationScope(variables={
-        k: Value.infer(v) for k, v in kwargs.items()
-    })).raw()
+    return (
+        Evaluator()
+        .eval(
+            parse_expr(expr),
+            EvaluationScope(variables={k: Value.infer(v) for k, v in kwargs.items()}),
+        )
+        .raw()
+    )
 
 
 def test_eval_literal_null() -> None:
@@ -43,10 +48,12 @@ def test_eval_identifier() -> None:
 
 def test_eval_identifier_parent_scope() -> None:
     assert (
-        Evaluator().eval(
+        Evaluator()
+        .eval(
             parse_expr("foo"),
             EvaluationScope(parent=EvaluationScope(variables={"foo": Integer(42)})),
-        ).raw()
+        )
+        .raw()
         == 42
     )
 
