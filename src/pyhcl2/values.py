@@ -9,9 +9,8 @@ from collections.abc import (
     MutableSequence,
     Sequence,
 )
-from os import PathLike
-
 from dataclasses import dataclass, field
+from os import PathLike
 from typing import (
     Never,
     Self,
@@ -62,7 +61,9 @@ class Value(ConsoleRenderable):
             case PathLike() as raw:
                 value = String(str(raw))
             case _:
-                raise NotImplementedError(f"Could not infer Value for {raw} of type {type(raw)}")
+                raise NotImplementedError(
+                    f"Could not infer Value for {raw} of type {type(raw)}"
+                )
 
         return value
 

@@ -42,6 +42,11 @@ class EvaluationScope:
     parent: Self | None = None
     variables: MutableMapping[str, Value] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        for key, value in self.variables.items():
+            if not isinstance(value, Value):
+                raise TypeError(f"Variable {key} is not a Value")
+
     def __getitem__(self, item: str) -> Value:
         try:
             return self.variables[item]
@@ -440,9 +445,7 @@ class Evaluator:
                 return Unknown.indirect(*args)
 
             try:
-                return self.intrinsic_functions[call.ident.name](
-                    *args
-                )
+                return self.intrinsic_functions[call.ident.name](*args)
             except TypeError as e:
                 raise DiagnosticError(
                     code="pyhcl2::evaluator::function_call::invalid_args",

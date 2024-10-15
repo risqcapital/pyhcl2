@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import StrEnum, auto
 
 import rich
-from dataclasses import dataclass, field
 from rich.abc import RichRenderable
 from rich.color import Color
 from rich.console import (
@@ -14,7 +14,8 @@ from rich.console import (
     NewLine,
     RenderableType,
     RenderResult,
-    RichCast, group,
+    RichCast,
+    group,
 )
 from rich.padding import Padding
 from rich.segment import Segment
@@ -81,7 +82,6 @@ class LabeledSourceBlock:
 
         src_line_start_index = self.start_char_index
         for i, line in enumerate(self.source.split("\n")):
-
             labels_in_line = [
                 label
                 for label in self.labels
@@ -92,7 +92,10 @@ class LabeledSourceBlock:
             labels_in_line = sorted(labels_in_line, key=lambda label: label.span.start)
 
             if labels_in_line:
-                yield Segment(f"{str(i+self.start_line).rjust(line_number_max_len)}", style=Style(dim=True))
+                yield Segment(
+                    f"{str(i+self.start_line).rjust(line_number_max_len)}",
+                    style=Style(dim=True),
+                )
                 yield Segment(" │ ")
                 yield Segment(line)
                 yield Segment("\n")
@@ -181,20 +184,15 @@ class DiagnosticError(Exception, RichCast):
     def __str__(self) -> str:
         return str(self.message)
 
-
     @group()
-    def __rich_header(
-        self
-    ) -> RenderResult:
+    def __rich_header(self) -> RenderResult:
         if self.code:
             yield Segment(f"{self.severity.title()}: ", style=self.severity.style)
             yield Segment(self.code, style=self.severity.style)
             yield NewLine()
 
     @group()
-    def __rich_causes(
-        self
-    ) -> RenderResult:
+    def __rich_causes(self) -> RenderResult:
         yield Segment(" × ", style=Style(color="red", bold=True))  # noqa: RUF001
         yield self.message
 
@@ -215,7 +213,16 @@ class DiagnosticError(Exception, RichCast):
             for frame in stack.frames:
                 if "pyhcl2" in frame.filename:
                     continue
-                causes.append(Text.assemble("File ", frame.filename or '', ":", str(frame.lineno), " in ", frame.name or ''))
+                causes.append(
+                    Text.assemble(
+                        "File ",
+                        frame.filename or "",
+                        ":",
+                        str(frame.lineno),
+                        " in ",
+                        frame.name or "",
+                    )
+                )
 
         for i, c in enumerate(causes):
             if i < len(causes) - 1:
@@ -226,8 +233,7 @@ class DiagnosticError(Exception, RichCast):
             yield c
 
     @group()
-    def __rich_snippets(
-        self) -> RenderResult:
+    def __rich_snippets(self) -> RenderResult:
         if self.source_code is None:
             return
 

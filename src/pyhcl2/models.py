@@ -29,7 +29,9 @@ def load_model_from_block(
         name = k.raw()
         if name in model_cls.model_fields:
             field = model_cls.model_fields[name]
-            if field.annotation is not None and field.annotation is type(v):
+            if field.annotation is not None and (
+                field.annotation is type(v) or field.annotation is Value
+            ):
                 field_values[name] = v
             else:
                 field_values[name] = v.raw()

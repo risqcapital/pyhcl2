@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import rich
-from prompt_toolkit import PromptSession
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.history import FileHistory
+from prompt_toolkit import PromptSession  # type: ignore
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # type: ignore
+from prompt_toolkit.history import FileHistory  # type: ignore
 from rich.console import NewLine
 
 from pyhcl2.eval import EvaluationScope, Evaluator
