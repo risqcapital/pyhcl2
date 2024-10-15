@@ -420,7 +420,7 @@ class Module(Node):
             stmt
             for stmt in self.body
             if isinstance(stmt, Block)
-            and (block_type is None or stmt.type == block_type)
+            and (block_type is None or stmt.type.name == block_type)
         ]
 
     def get_block(self, block_type: str, *labels: str) -> Block | None:
