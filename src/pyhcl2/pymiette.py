@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
 from enum import StrEnum, auto
 
 import rich
+from dataclasses import dataclass, field
 from rich.abc import RichRenderable
 from rich.color import Color
 from rich.console import (
@@ -15,7 +14,7 @@ from rich.console import (
     NewLine,
     RenderableType,
     RenderResult,
-    RichCast,
+    RichCast, group,
 )
 from rich.padding import Padding
 from rich.segment import Segment
@@ -23,6 +22,7 @@ from rich.style import Style
 from rich.styled import Styled
 from rich.terminal_theme import DIMMED_MONOKAI
 from rich.text import Text
+from rich.traceback import Traceback
 
 
 class Severity(StrEnum):
@@ -68,17 +68,19 @@ class LabeledSourceBlock:
     def __rich_console__(
         self, _console: Console, _options: ConsoleOptions
     ) -> RenderResult:
+        lines_in_src = self.source.count("\n") + 1
+        line_number_max_len = len(str(lines_in_src + self.start_line))
+        line_numbers_padding = " " * (line_number_max_len + 1)
+
         if self.title is not None:
-            yield Segment(f"  ╭─[{self.title}]\n")
+            yield Segment(line_numbers_padding)
+            yield Segment(f"╭─[{self.title}]\n")
         else:
-            yield Segment("  ╭───\n")
+            yield Segment(line_numbers_padding)
+            yield Segment("╭───\n")
 
         src_line_start_index = self.start_char_index
         for i, line in enumerate(self.source.split("\n")):
-            yield Segment(f"{i+self.start_line}", style=Style(dim=True))
-            yield Segment(" │ ")
-            yield Segment(line)
-            yield Segment("\n")
 
             labels_in_line = [
                 label
@@ -90,8 +92,14 @@ class LabeledSourceBlock:
             labels_in_line = sorted(labels_in_line, key=lambda label: label.span.start)
 
             if labels_in_line:
+                yield Segment(f"{str(i+self.start_line).rjust(line_number_max_len)}", style=Style(dim=True))
+                yield Segment(" │ ")
+                yield Segment(line)
+                yield Segment("\n")
+
                 for j in range(len(labels_in_line) + 1):
-                    yield Segment("  · ")
+                    yield Segment(line_numbers_padding)
+                    yield Segment("· ")
 
                     labels_line_length = 0
 
@@ -131,7 +139,8 @@ class LabeledSourceBlock:
 
             src_line_start_index += len(line) + 1
 
-        yield Segment("  ╰───\n")
+        yield Segment(line_numbers_padding)
+        yield Segment("╰───\n")
 
 
 @dataclass(kw_only=True)
@@ -148,6 +157,9 @@ class DiagnosticError(Exception, RichCast):
         return self
 
     def with_source_code(self, source_code: str) -> DiagnosticError:
+        if self.source_code is not None:
+            return self
+
         diag = DiagnosticError(
             severity=self.severity,
             code=self.code,
@@ -169,16 +181,19 @@ class DiagnosticError(Exception, RichCast):
     def __str__(self) -> str:
         return str(self.message)
 
+
+    @group()
     def __rich_header(
-        self, _console: Console, _options: ConsoleOptions
+        self
     ) -> RenderResult:
         if self.code:
             yield Segment(f"{self.severity.title()}: ", style=self.severity.style)
             yield Segment(self.code, style=self.severity.style)
             yield NewLine()
 
+    @group()
     def __rich_causes(
-        self, _console: Console, _options: ConsoleOptions
+        self
     ) -> RenderResult:
         yield Segment(" × ", style=Style(color="red", bold=True))  # noqa: RUF001
         yield self.message
@@ -195,6 +210,13 @@ class DiagnosticError(Exception, RichCast):
             causes.append(Text(str(cause).split("\n", 1)[0]))
             cause = cause.__cause__
 
+        stack = Traceback.extract(type(self), self, self.__traceback__).stacks[0]
+        if stack.frames:
+            for frame in stack.frames:
+                if "pyhcl2" in frame.filename:
+                    continue
+                causes.append(Text.assemble("File ", frame.filename or '', ":", str(frame.lineno), " in ", frame.name or ''))
+
         for i, c in enumerate(causes):
             if i < len(causes) - 1:
                 yield Segment(" ├─▶ ", style=Style(color="red", bold=True))
@@ -203,9 +225,9 @@ class DiagnosticError(Exception, RichCast):
 
             yield c
 
+    @group()
     def __rich_snippets(
-        self, _console: Console, _options: ConsoleOptions
-    ) -> RenderResult:
+        self) -> RenderResult:
         if self.source_code is None:
             return
 
@@ -215,30 +237,23 @@ class DiagnosticError(Exception, RichCast):
             labels=self.labels,
         )
 
-    def __rich_help(self, _console: Console, _options: ConsoleOptions) -> RenderResult:
+    @group()
+    def __rich_help(self) -> RenderResult:
         if self.help:
             yield NewLine()
             yield Segment("help: ", style=Style(color="blue"))
             yield self.help
 
     def __rich__(self) -> ConsoleRenderable | RichCast | str:
-        @dataclass
-        class Wrapped(RichRenderable):
-            inner: Callable[[Console, ConsoleOptions], RenderResult]
-
-            def __rich_console__(
-                self, console: Console, options: ConsoleOptions
-            ) -> RenderResult:
-                return self.inner(console, options)
-
         return Padding(
             Group(
-                Wrapped(self.__rich_header),
+                # self.__rich_traceback(),
+                self.__rich_header(),
                 Padding(
                     Group(
-                        Wrapped(self.__rich_causes),
-                        Wrapped(self.__rich_snippets),
-                        Wrapped(self.__rich_help),
+                        self.__rich_causes(),
+                        self.__rich_snippets(),
+                        self.__rich_help(),
                     ),
                     pad=(0, 1),
                 ),
