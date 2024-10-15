@@ -435,9 +435,13 @@ class Evaluator:
             )
 
         if call.ident.name in self.intrinsic_functions:
+            args = [self.eval(arg, scope) for arg in call.args]
+            if any(isinstance(arg.resolve(), Unknown) for arg in args):
+                return Unknown.indirect(*args)
+
             try:
                 return self.intrinsic_functions[call.ident.name](
-                    *[self.eval(arg, scope) for arg in call.args]
+                    *args
                 )
             except TypeError as e:
                 raise DiagnosticError(
