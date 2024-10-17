@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/risqcapital/pyhcl2/compare/v0.2.1...v1.0.0) (2024-10-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add `start_pos` and `end_pos` to AST Nodes, tweak grammar and simplify test harness ([#37](https://github.com/risqcapital/pyhcl2/issues/37))
+
+### Features
+
+* Add `start_pos` and `end_pos` to AST Nodes, tweak grammar and simplify test harness ([#37](https://github.com/risqcapital/pyhcl2/issues/37)) ([5b769b1](https://github.com/risqcapital/pyhcl2/commit/5b769b141e49c2076f400c01e5bf320e563bfc24))
+
 ## [0.2.1](https://github.com/risqcapital/pyhcl2/compare/v0.2.0...v0.2.1) (2024-07-04)
 
 
