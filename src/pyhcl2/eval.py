@@ -373,15 +373,7 @@ class Evaluator:
         try:
             return on[String(key_value)]
         except KeyError:
-            raise DiagnosticError(
-                code="pyhcl2::evaluator::get_attr::missing_key",
-                message="Key not found in object",
-                labels=[
-                    LabeledSpan(on_span, on.type_name),
-                    LabeledSpan(key.ident.span, "key"),
-                ],
-            )
-            # return Unresolved(key.ident.span, [VariableReference((None, key_value,), key.ident.span)])
+            return Unknown().direct(key.ident.span, key_value)
 
     def _evaluate_get_index(
         self, on: Value, on_span: SourceSpan, key: GetIndexKey, scope: EvaluationScope
