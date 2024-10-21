@@ -3,13 +3,16 @@ from __future__ import annotations
 from typing import Any, TypeVar, cast
 
 import rich
+from pyagnostics.exceptions import DiagnosticError, DiagnosticErrorGroup
+from pyagnostics.source import InMemorySource
+from pyagnostics.spans import LabeledSpan
 from pydantic import BaseModel, ValidationError
 from pydantic_core import ErrorDetails
 
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.nodes import Block
 from pyhcl2.parse import parse_expr_or_stmt
-from pyhcl2.pymiette import DiagnosticError, DiagnosticGroup, LabeledSpan
+from pyhcl2.rich_utils import Inline
 from pyhcl2.values import Array, Object, String, Value
 
 Model = TypeVar("Model", bound=BaseModel)
@@ -84,11 +87,13 @@ def load_model_from_block(
                             ]
                             if value.span is not None
                             else [],
-                            help=repr(error["ctx"]) if "ctx" in error else None,
+                            notes=[Inline("[blue]context:[/blue] ", repr(error["ctx"]))]
+                            if "ctx" in error
+                            else [],
                         )
                     )
 
-        raise DiagnosticGroup("Failed to validate hcl model", diagnostics)
+        raise DiagnosticErrorGroup("Failed to validate hcl model", diagnostics)
 
 
 if __name__ == "__main__":
@@ -105,6 +110,6 @@ if __name__ == "__main__":
         assert isinstance(ast, Block)
         rich.print(load_model_from_block(ast, TestModel))
     except DiagnosticError as e:
-        rich.print(e.with_source_code(hcl))
-    except DiagnosticGroup as e:
-        rich.print(e.with_source_code(hcl))
+        rich.print(e.with_source_code(InMemorySource(hcl)))
+    except DiagnosticErrorGroup as e:
+        rich.print(e.with_source_code(InMemorySource(hcl)))

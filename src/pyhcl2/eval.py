@@ -5,6 +5,8 @@ from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field
 from typing import Self
 
+from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import LabeledSpan, SourceSpan
 from rich.console import Group
 from rich.text import Text
 
@@ -30,7 +32,6 @@ from pyhcl2.nodes import (
     Parenthesis,
     UnaryExpression,
 )
-from pyhcl2.pymiette import DiagnosticError, LabeledSpan, SourceSpan
 from pyhcl2.rich_utils import Inline
 from pyhcl2.values import Array, Boolean, Integer, Null, Object, String, Unknown, Value
 
@@ -219,13 +220,16 @@ class Evaluator:
                         code="pyhcl2::evaluator::object::unsupported_key",
                         message="Unsupported key type in object",
                         labels=[LabeledSpan(key_expr.span, "unsupported key")],
-                        help=Inline(
-                            "Did you mean `",
-                            Parenthesis(key_expr),
-                            " = ",
-                            value_expr,
-                            "`?",
-                        ),
+                        notes=[
+                            Inline(
+                                "[blue]help:[/blue] ",
+                                "Did you mean `",
+                                Parenthesis(key_expr),
+                                " = ",
+                                value_expr,
+                                "`?",
+                            )
+                        ],
                     )
             value = self.eval(value_expr, scope)
             if isinstance(value, Unknown):
@@ -294,7 +298,7 @@ class Evaluator:
                     LabeledSpan(expr.op.span, "unsupported operator"),
                     LabeledSpan(expr.right.span, right.type_name),
                 ],
-            )
+            ) from None
         except ArithmeticError as e:
             right = self.eval(expr.right, scope)
             raise DiagnosticError(
@@ -637,8 +641,13 @@ class Evaluator:
                     span = SourceSpan(span.start, key.span.end)
                 values.append(value)
             except DiagnosticError as e:
-                if e.help is None:
-                    e.help = Inline("The resulting expression was ", v, *expr.keys)
+                e.notes.append(
+                    Inline(
+                        "[blue]help:[/blue] The resulting expression was ",
+                        v,
+                        *expr.keys,
+                    )
+                )
                 raise e.with_context(f"while evaluating element {i}").with_context(
                     "while evaluating attribute splat expression"
                 )
@@ -673,8 +682,13 @@ class Evaluator:
                     span = SourceSpan(span.start, key.span.end)
                 values.append(value)
             except DiagnosticError as e:
-                if e.help is None:
-                    e.help = Inline("The resulting expression was ", v, *expr.keys)
+                e.notes.append(
+                    Inline(
+                        "[blue]help:[/blue] The resulting expression was ",
+                        v,
+                        *expr.keys,
+                    )
+                )
                 raise e.with_context(f"while evaluating element {i}").with_context(
                     "while evaluating index splat expression"
                 )

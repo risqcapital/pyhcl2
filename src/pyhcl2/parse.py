@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import typing as t
 
-from lark import Lark, UnexpectedCharacters, UnexpectedToken
+from lark import Lark, Token, UnexpectedCharacters, UnexpectedToken
+from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import LabeledSpan, SourceSpan
 
 from pyhcl2.nodes import Expression, Module, Node, Stmt
-from pyhcl2.pymiette import DiagnosticError, LabeledSpan, SourceSpan
 from pyhcl2.transformer import ToAstTransformer
 
 
@@ -37,7 +38,7 @@ def parse_string(text: str, start: str) -> Node:
                     "Unexpected character",
                 )
             ],
-        ) from e
+        ) from None
     except UnexpectedToken as e:
         if e.token.type == "$END":
             raise DiagnosticError(
@@ -50,16 +51,34 @@ def parse_string(text: str, start: str) -> Node:
                 ],
             ) from e
         else:
-            raise DiagnosticError(
-                code="pyhcl2::parser::unexpected_token",
-                message="The parser encountered an unexpected token",
-                labels=[
-                    LabeledSpan(
-                        SourceSpan(e.token.start_pos, e.token.end_pos),
-                        "Unexpected token",
-                    )
-                ],
-            )
+            assert isinstance(e.token, Token)
+            assert e.token.start_pos is not None
+            assert e.token.end_pos is not None
+            if e.token.value == "\n":
+                raise DiagnosticError(
+                    code="pyhcl2::parser::unexpected_newline",
+                    message="The parser encountered an unexpected newline",
+                    labels=[
+                        LabeledSpan(
+                            SourceSpan(e.token.start_pos, e.token.end_pos),
+                            "Unexpected newline",
+                        )
+                    ],
+                ) from None
+            else:
+                raise DiagnosticError(
+                    code="pyhcl2::parser::unexpected_token",
+                    message="The parser encountered an unexpected token",
+                    labels=[
+                        LabeledSpan(
+                            SourceSpan(e.token.start_pos, e.token.end_pos),
+                            "Unexpected token",
+                        )
+                    ],
+                    notes=[
+                        f"Got {e.token.value!r} instead",
+                    ],
+                ) from None
 
     return t.cast(Node, ast)
 

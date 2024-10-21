@@ -5,11 +5,11 @@ import typing as t
 from dataclasses import dataclass, field
 from functools import cached_property
 
+from pyagnostics.spans import SourceSpan
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.padding import Padding
 from rich.segment import Segment
 
-from pyhcl2.pymiette import SourceSpan
 from pyhcl2.rich_utils import (
     STYLE_FUNCTION,
     STYLE_KEYWORDS,

@@ -1,6 +1,8 @@
 import textwrap
 
 import pytest
+from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import SourceSpan
 
 from pyhcl2.nodes import (
     ArrayExpression,
@@ -31,7 +33,6 @@ from pyhcl2.parse import (
     parse_expr_or_stmt,
     parse_module,
 )
-from pyhcl2.pymiette import DiagnosticError, SourceSpan
 from pyhcl2.values import Boolean, Float, Integer, Null, String
 
 

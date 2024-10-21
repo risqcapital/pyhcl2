@@ -4,11 +4,11 @@ import rich
 from prompt_toolkit import PromptSession  # type: ignore
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # type: ignore
 from prompt_toolkit.history import FileHistory  # type: ignore
+from pyagnostics.exceptions import DiagnosticError
 from rich.console import NewLine
 
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.parse import parse_expr_or_stmt
-from pyhcl2.pymiette import DiagnosticError
 from pyhcl2.rich_utils import Inline
 
 

@@ -17,11 +17,12 @@ from typing import (
     overload,
 )
 
+from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import LabeledSpan, SourceSpan
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
 
 import pyhcl2.nodes
-from pyhcl2.pymiette import DiagnosticError, LabeledSpan, SourceSpan
 from pyhcl2.rich_utils import (
     STYLE_KEYWORDS,
     STYLE_NUMBER,

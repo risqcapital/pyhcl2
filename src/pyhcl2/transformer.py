@@ -7,6 +7,7 @@ from typing import TypeVar, cast
 from lark import Discard, Token, Transformer, v_args
 from lark.tree import Meta
 from lark.visitors import _DiscardType
+from pyagnostics.spans import SourceSpan
 
 from pyhcl2.nodes import (
     ArrayExpression,
@@ -35,7 +36,6 @@ from pyhcl2.nodes import (
     UnaryOperator,
     VarArgsMarker,
 )
-from pyhcl2.pymiette import SourceSpan
 from pyhcl2.values import Boolean, Float, Integer, Null, String
 
 HEREDOC_PATTERN = re.compile(r"<<([a-zA-Z][a-zA-Z0-9._-]+)\n((.|\n)*?)\n\s*\1", re.S)
