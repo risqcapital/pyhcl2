@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import dataclasses
 import typing as t
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 
 from pyagnostics.spans import SourceSpan
-from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
+from rich.console import (
+    Console,
+    ConsoleOptions,
+    ConsoleRenderable,
+    RenderResult,
+)
 from rich.padding import Padding
 from rich.segment import Segment
+from rich.text import Span
 
 from pyhcl2.rich_utils import (
     STYLE_FUNCTION,
@@ -24,6 +31,9 @@ class Node(ConsoleRenderable):
 
     span: SourceSpan = field(default=SourceSpan(-1, -1), compare=False, hash=False)
 
+    def rich_highlights(self) -> Iterable[Span]:
+        return []
+
 
 class Expression(Node):
     """Base class for nodes that represent expressions in HCL2."""
@@ -37,6 +47,9 @@ class Literal(Expression):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield self.value
+
+    def rich_highlights(self) -> Iterable[Span]:
+        return self.value.rich_highlights()
 
 
 @dataclass(frozen=True, eq=True)
@@ -52,6 +65,10 @@ class ArrayExpression(Expression):
             if i < len(self.values) - 1:
                 yield Segment(", ")
         yield Segment("]")
+
+    def rich_highlights(self) -> Iterable[Span]:
+        for value in self.values:
+            yield from value.rich_highlights()
 
 
 @dataclass(frozen=True, eq=True)
@@ -73,6 +90,14 @@ class ObjectExpression(Expression):
                 yield Segment(", ")
         yield Segment("}")
 
+    def rich_highlights(self) -> Iterable[Span]:
+        for key, value in self.fields.items():
+            if isinstance(key, Identifier):
+                yield key.span.styled(STYLE_PROPERTY_NAME)
+            else:
+                yield from key.rich_highlights()
+            yield from value.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class Identifier(Expression):
@@ -88,6 +113,9 @@ class Identifier(Expression):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.name)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        return []
 
 
 @dataclass(frozen=True, eq=True)
@@ -116,6 +144,11 @@ class FunctionCall(Expression):
             yield Segment("...")
         yield Segment(")")
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield self.ident.span.styled(STYLE_FUNCTION)
+        for arg in self.args:
+            yield from arg.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class GetAttrKey(Node):
@@ -139,6 +172,9 @@ class GetIndexKey(Node):
         yield self.expr
         yield Segment("]")
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.expr.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class GetAttr(Expression):
@@ -151,6 +187,10 @@ class GetAttr(Expression):
         yield self.on
         yield self.key
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.on.rich_highlights()
+        yield from self.key.ident.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class GetIndex(Expression):
@@ -162,6 +202,10 @@ class GetIndex(Expression):
     ) -> RenderResult:
         yield self.on
         yield self.key
+
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.on.rich_highlights()
+        yield from self.key.expr.rich_highlights()
 
 
 @dataclass(frozen=True, eq=True)
@@ -176,6 +220,11 @@ class AttrSplat(Expression):
         yield Segment(".*")
         yield from self.keys
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.on.rich_highlights()
+        for key in self.keys:
+            yield from key.ident.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class IndexSplat(Expression):
@@ -189,6 +238,11 @@ class IndexSplat(Expression):
         yield Segment("[*]")
         yield from self.keys
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.on.rich_highlights()
+        for key in self.keys:
+            yield from key.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class UnaryOperator(Node):
@@ -198,6 +252,9 @@ class UnaryOperator(Node):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.type)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        return []
 
 
 @dataclass(frozen=True, eq=True)
@@ -211,6 +268,10 @@ class UnaryExpression(Expression):
         yield self.op
         yield self.expr
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.op.rich_highlights()
+        yield from self.expr.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class BinaryOperator(Node):
@@ -222,6 +283,9 @@ class BinaryOperator(Node):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(self.type)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        return []
 
 
 @dataclass(frozen=True, eq=True)
@@ -239,6 +303,11 @@ class BinaryExpression(Expression):
         yield Segment(" ")
         yield self.right
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.left.rich_highlights()
+        yield from self.op.rich_highlights()
+        yield from self.right.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class Conditional(Expression):
@@ -255,6 +324,11 @@ class Conditional(Expression):
         yield Segment(" : ")
         yield self.else_expr
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.cond.rich_highlights()
+        yield from self.then_expr.rich_highlights()
+        yield from self.else_expr.rich_highlights()
+
 
 @dataclass(frozen=True, eq=True)
 class Parenthesis(Expression):
@@ -266,6 +340,9 @@ class Parenthesis(Expression):
         yield Segment("(")
         yield self.expr
         yield Segment(")")
+
+    def rich_highlights(self) -> Iterable[Span]:
+        yield from self.expr.rich_highlights()
 
 
 @dataclass(frozen=True, eq=True)
@@ -293,6 +370,30 @@ class ForTupleExpression(Expression):
             yield Segment(" if ", style=STYLE_KEYWORDS)
             yield self.condition
         yield Segment("]")
+
+    def rich_highlights(self) -> Iterable[Span]:
+        yield SourceSpan(
+            self.span.start + 1,
+            self.key_ident.span.start - 1
+            if self.key_ident is not None
+            else self.value_ident.span.start - 1,
+        ).styled(STYLE_KEYWORDS)
+
+        if self.key_ident is not None:
+            yield from self.key_ident.rich_highlights()
+        yield from self.value_ident.rich_highlights()
+
+        yield SourceSpan(
+            self.value_ident.span.end + 1, self.collection.span.start - 1
+        ).styled(STYLE_KEYWORDS)
+
+        yield from self.collection.rich_highlights()
+        yield from self.value.rich_highlights()
+        if self.condition is not None:
+            yield SourceSpan(
+                self.value.span.end + 1, self.condition.span.start - 1
+            ).styled(STYLE_KEYWORDS)
+            yield from self.condition.rich_highlights()
 
 
 @dataclass(frozen=True, eq=True)
@@ -327,6 +428,28 @@ class ForObjectExpression(Expression):
             yield Segment("...")
         yield Segment("}")
 
+    def rich_highlights(self) -> Iterable[Span]:
+        yield SourceSpan(
+            self.span.start + 1,
+            self.key_ident.span.start - 1
+            if self.key_ident is not None
+            else self.value_ident.span.start - 1,
+        ).styled(STYLE_KEYWORDS)
+        yield from (
+            self.key_ident.rich_highlights() if self.key_ident is not None else []
+        )
+        yield from self.value_ident.rich_highlights()
+        yield SourceSpan(
+            self.value_ident.span.end + 1, self.collection.span.start - 1
+        ).styled(STYLE_KEYWORDS)
+        yield from self.collection.rich_highlights()
+        yield from self.key.rich_highlights()
+        if self.condition is not None:
+            yield SourceSpan(
+                self.value.span.end + 1, self.condition.span.start - 1
+            ).styled(STYLE_KEYWORDS)
+            yield from self.condition.rich_highlights()
+
 
 class Stmt(Node):
     """Base class for nodes that represent statements in HCL2."""
@@ -351,6 +474,10 @@ class Attribute(Stmt):
         yield Segment(self.key.name, style=STYLE_PROPERTY_NAME)
         yield Segment(" = ")
         yield self.value
+
+    def rich_highlights(self) -> Iterable[Span]:
+        yield self.key.span.styled(STYLE_PROPERTY_NAME)
+        yield from self.value.rich_highlights()
 
 
 @dataclass(frozen=True, eq=True)
@@ -397,6 +524,13 @@ class Block(Stmt):
         for stmt in self.body:
             yield Padding(stmt, (0, 2))
         yield Segment("}")
+
+    def rich_highlights(self) -> Iterable[Span]:
+        yield self.type.span.styled(STYLE_KEYWORDS)
+        for label in self.labels:
+            yield from label.rich_highlights()
+        for stmt in self.body:
+            yield from stmt.rich_highlights()
 
     @cached_property
     def attributes(self) -> dict[str, Expression]:
@@ -445,6 +579,10 @@ class Module(Node):
         for stmt in self.body:
             yield stmt
             yield Segment("\n")
+
+    def rich_highlights(self) -> Iterable[Span]:
+        for stmt in self.body:
+            yield from stmt.rich_highlights()
 
 
 class VarArgsMarker(Node):

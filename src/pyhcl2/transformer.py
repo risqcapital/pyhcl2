@@ -124,13 +124,15 @@ class ToAstTransformer(Transformer):
 
     @v_args(meta=True, inline=True)
     def null_lit(self, meta: Meta) -> Literal:
-        return Literal(Null(), span=SourceSpan(meta.start_pos, meta.end_pos))
+        span = SourceSpan(meta.start_pos, meta.end_pos)
+        return Literal(Null(span=span), span=span)
 
     @v_args(meta=True)
     def int_lit(self, meta: Meta, args: list[Token]) -> Literal:
+        span = SourceSpan(meta.start_pos, meta.end_pos)
         return Literal(
-            Integer(int("".join([str(arg) for arg in args]))),
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            Integer(int("".join([str(arg) for arg in args])), span=span),
+            span=span,
         )
 
     @v_args(inline=True)
@@ -141,16 +143,17 @@ class ToAstTransformer(Transformer):
     def bool_lit(self, token: Token) -> Literal:
         assert token.start_pos is not None
         assert token.end_pos is not None
+        span = SourceSpan(token.start_pos, token.end_pos)
         match token.value.lower():
             case "true":
                 return Literal(
-                    Boolean(True),
-                    span=SourceSpan(token.start_pos, token.end_pos),
+                    Boolean(True, span=span),
+                    span=span,
                 )
             case "false":
                 return Literal(
-                    Boolean(False),
-                    span=SourceSpan(token.start_pos, token.end_pos),
+                    Boolean(False, span=span),
+                    span=span,
                 )
         raise ValueError(f"Invalid boolean value: {token.value}")
 
@@ -158,9 +161,10 @@ class ToAstTransformer(Transformer):
     def string_lit(self, token: Token) -> Literal:
         assert token.start_pos is not None
         assert token.end_pos is not None
+        span = SourceSpan(token.start_pos, token.end_pos)
         return Literal(
-            String(token.value[1:-1]),
-            span=SourceSpan(token.start_pos, token.end_pos),
+            String(token.value[1:-1], span=span),
+            span=span,
         )
 
     @v_args(inline=True)
