@@ -14,7 +14,7 @@ from pyhcl2.rich_utils import Inline
 
 def main() -> None:
     scope = EvaluationScope()
-    evaluator = Evaluator(intrinsic_functions={"test": lambda x: x})
+    evaluator = Evaluator(intrinsic_functions={"identity": lambda x: x})
     session: PromptSession = PromptSession(
         history=FileHistory(Path.home() / ".pyhcl2_history")
     )
