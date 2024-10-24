@@ -1,9 +1,11 @@
 import textwrap
 
 import pytest
-from lark import UnexpectedToken
-from pyhcl2 import (
-    Array,
+from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import SourceSpan
+
+from pyhcl2.nodes import (
+    ArrayExpression,
     Attribute,
     AttrSplat,
     BinaryExpression,
@@ -21,626 +23,566 @@ from pyhcl2 import (
     IndexSplat,
     Literal,
     Module,
-    Object,
+    ObjectExpression,
     Parenthesis,
     UnaryExpression,
     UnaryOperator,
+)
+from pyhcl2.parse import (
     parse_expr,
-    parse_expr_or_attribute,
+    parse_expr_or_stmt,
     parse_module,
 )
+from pyhcl2.values import Boolean, Float, Integer, Null, String
 
 
 def test_parse_literal_null() -> None:
-    assert parse_expr("null") == Literal(None, start_pos=0, end_pos=4)
+    assert parse_expr("null") == Literal(Null(), span=SourceSpan(0, 4))
 
 
 def test_parse_literal_string() -> None:
     assert parse_expr('"Hello World"') == Literal(
-        "Hello World", start_pos=0, end_pos=13
+        String("Hello World"), span=SourceSpan(0, 13)
     )
 
 
 def test_parse_literal_bool() -> None:
-    assert parse_expr("true") == Literal(True, start_pos=0, end_pos=4)
-    assert parse_expr("false") == Literal(False, start_pos=0, end_pos=5)
+    assert parse_expr("true") == Literal(Boolean(True), span=SourceSpan(0, 4))
+    assert parse_expr("false") == Literal(Boolean(False), span=SourceSpan(0, 5))
 
 
 def test_parse_literal_number() -> None:
-    assert parse_expr("42") == Literal(42, start_pos=0, end_pos=2)
-    assert parse_expr("42.0") == Literal(42.0, start_pos=0, end_pos=4)
-    assert parse_expr("42.42") == Literal(42.42, start_pos=0, end_pos=5)
+    assert parse_expr("42") == Literal(Integer(42), span=SourceSpan(0, 2))
+    assert parse_expr("42.0") == Literal(Float(42.0), span=SourceSpan(0, 4))
+    assert parse_expr("42.42") == Literal(Float(42.42), span=SourceSpan(0, 5))
 
 
 def test_parse_identifier() -> None:
-    assert parse_expr("foo") == Identifier("foo", start_pos=0, end_pos=3)
-    assert parse_expr("bar") == Identifier("bar", start_pos=0, end_pos=3)
+    assert parse_expr("foo") == Identifier("foo", span=SourceSpan(0, 3))
+    assert parse_expr("bar") == Identifier("bar", span=SourceSpan(0, 3))
 
 
 def test_parse_unary_expr() -> None:
     assert parse_expr("-a") == UnaryExpression(
-        UnaryOperator("-", start_pos=0, end_pos=1),
-        Identifier("a", start_pos=1, end_pos=2),
-        start_pos=0,
-        end_pos=2,
+        UnaryOperator("-", span=SourceSpan(0, 1)),
+        Identifier("a", span=SourceSpan(1, 2)),
+        span=SourceSpan(0, 2),
     )
     assert parse_expr("!a") == UnaryExpression(
-        UnaryOperator("!", start_pos=0, end_pos=1),
-        Identifier("a", start_pos=1, end_pos=2),
-        start_pos=0,
-        end_pos=2,
+        UnaryOperator("!", span=SourceSpan(0, 1)),
+        Identifier("a", span=SourceSpan(1, 2)),
+        span=SourceSpan(0, 2),
     )
 
 
 def test_parse_binary_expr() -> None:
     assert parse_expr("a == b") == BinaryExpression(
-        BinaryOperator("==", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=5, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        BinaryOperator("==", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(5, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("a != b") == BinaryExpression(
-        BinaryOperator("!=", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=5, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        BinaryOperator("!=", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(5, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("a < b") == BinaryExpression(
-        BinaryOperator("<", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator("<", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
     assert parse_expr("a > b") == BinaryExpression(
-        BinaryOperator(">", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator(">", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
     assert parse_expr("a <= b") == BinaryExpression(
-        BinaryOperator("<=", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=5, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        BinaryOperator("<=", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(5, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("a >= b") == BinaryExpression(
-        BinaryOperator(">=", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=5, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        BinaryOperator(">=", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(5, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("a - b") == BinaryExpression(
-        BinaryOperator("-", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator("-", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
     assert parse_expr("a * b") == BinaryExpression(
-        BinaryOperator("*", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator("*", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
     assert parse_expr("a / b") == BinaryExpression(
-        BinaryOperator("/", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator("/", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
     assert parse_expr("a % b") == BinaryExpression(
-        BinaryOperator("%", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator("%", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
     assert parse_expr("a && b") == BinaryExpression(
-        BinaryOperator("&&", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=5, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        BinaryOperator("&&", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(5, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("a || b") == BinaryExpression(
-        BinaryOperator("||", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=5, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        BinaryOperator("||", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(5, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("a + b") == BinaryExpression(
-        BinaryOperator("+", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+        BinaryOperator("+", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
 
 
 def test_parse_binary_precedence() -> None:
     assert parse_expr("a + b * c") == BinaryExpression(
-        BinaryOperator("+", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
+        BinaryOperator("+", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
         BinaryExpression(
-            BinaryOperator("*", start_pos=6, end_pos=7),
-            Identifier("b", start_pos=4, end_pos=5),
-            Identifier("c", start_pos=8, end_pos=9),
-            start_pos=4,
-            end_pos=9,
+            BinaryOperator("*", span=SourceSpan(6, 7)),
+            Identifier("b", span=SourceSpan(4, 5)),
+            Identifier("c", span=SourceSpan(8, 9)),
+            span=SourceSpan(4, 9),
         ),
-        start_pos=0,
-        end_pos=9,
+        span=SourceSpan(0, 9),
     )
     assert parse_expr("a * b + c") == BinaryExpression(
-        BinaryOperator("+", start_pos=6, end_pos=7),
+        BinaryOperator("+", span=SourceSpan(6, 7)),
         BinaryExpression(
-            BinaryOperator("*", start_pos=2, end_pos=3),
-            Identifier("a", start_pos=0, end_pos=1),
-            Identifier("b", start_pos=4, end_pos=5),
-            start_pos=0,
-            end_pos=5,
+            BinaryOperator("*", span=SourceSpan(2, 3)),
+            Identifier("a", span=SourceSpan(0, 1)),
+            Identifier("b", span=SourceSpan(4, 5)),
+            span=SourceSpan(0, 5),
         ),
-        Identifier("c", start_pos=8, end_pos=9),
-        start_pos=0,
-        end_pos=9,
+        Identifier("c", span=SourceSpan(8, 9)),
+        span=SourceSpan(0, 9),
     )
     assert parse_expr("a < b + c") == BinaryExpression(
-        BinaryOperator("<", start_pos=2, end_pos=3),
-        Identifier("a", start_pos=0, end_pos=1),
+        BinaryOperator("<", span=SourceSpan(2, 3)),
+        Identifier("a", span=SourceSpan(0, 1)),
         BinaryExpression(
-            BinaryOperator("+", start_pos=6, end_pos=7),
-            Identifier("b", start_pos=4, end_pos=5),
-            Identifier("c", start_pos=8, end_pos=9),
-            start_pos=4,
-            end_pos=9,
+            BinaryOperator("+", span=SourceSpan(6, 7)),
+            Identifier("b", span=SourceSpan(4, 5)),
+            Identifier("c", span=SourceSpan(8, 9)),
+            span=SourceSpan(4, 9),
         ),
-        start_pos=0,
-        end_pos=9,
+        span=SourceSpan(0, 9),
     )
     assert parse_expr("a + b < c") == BinaryExpression(
-        BinaryOperator("<", start_pos=6, end_pos=7),
+        BinaryOperator("<", span=SourceSpan(6, 7)),
         BinaryExpression(
-            BinaryOperator("+", start_pos=2, end_pos=3),
-            Identifier("a", start_pos=0, end_pos=1),
-            Identifier("b", start_pos=4, end_pos=5),
-            start_pos=0,
-            end_pos=5,
+            BinaryOperator("+", span=SourceSpan(2, 3)),
+            Identifier("a", span=SourceSpan(0, 1)),
+            Identifier("b", span=SourceSpan(4, 5)),
+            span=SourceSpan(0, 5),
         ),
-        Identifier("c", start_pos=8, end_pos=9),
-        start_pos=0,
-        end_pos=9,
+        Identifier("c", span=SourceSpan(8, 9)),
+        span=SourceSpan(0, 9),
     )
     assert parse_expr("a == b >= c") == BinaryExpression(
-        BinaryOperator("==", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
+        BinaryOperator("==", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
         BinaryExpression(
-            BinaryOperator(">=", start_pos=7, end_pos=9),
-            Identifier("b", start_pos=5, end_pos=6),
-            Identifier("c", start_pos=10, end_pos=11),
-            start_pos=5,
-            end_pos=11,
+            BinaryOperator(">=", span=SourceSpan(7, 9)),
+            Identifier("b", span=SourceSpan(5, 6)),
+            Identifier("c", span=SourceSpan(10, 11)),
+            span=SourceSpan(5, 11),
         ),
-        start_pos=0,
-        end_pos=11,
+        span=SourceSpan(0, 11),
     )
     assert parse_expr("a >= b == c") == BinaryExpression(
-        BinaryOperator("==", start_pos=7, end_pos=9),
+        BinaryOperator("==", span=SourceSpan(7, 9)),
         BinaryExpression(
-            BinaryOperator(">=", start_pos=2, end_pos=4),
-            Identifier("a", start_pos=0, end_pos=1),
-            Identifier("b", start_pos=5, end_pos=6),
-            start_pos=0,
-            end_pos=6,
+            BinaryOperator(">=", span=SourceSpan(2, 4)),
+            Identifier("a", span=SourceSpan(0, 1)),
+            Identifier("b", span=SourceSpan(5, 6)),
+            span=SourceSpan(0, 6),
         ),
-        Identifier("c", start_pos=10, end_pos=11),
-        start_pos=0,
-        end_pos=11,
+        Identifier("c", span=SourceSpan(10, 11)),
+        span=SourceSpan(0, 11),
     )
     assert parse_expr("a == b && c") == BinaryExpression(
-        BinaryOperator("&&", start_pos=7, end_pos=9),
+        BinaryOperator("&&", span=SourceSpan(7, 9)),
         BinaryExpression(
-            BinaryOperator("==", start_pos=2, end_pos=4),
-            Identifier("a", start_pos=0, end_pos=1),
-            Identifier("b", start_pos=5, end_pos=6),
-            start_pos=0,
-            end_pos=6,
+            BinaryOperator("==", span=SourceSpan(2, 4)),
+            Identifier("a", span=SourceSpan(0, 1)),
+            Identifier("b", span=SourceSpan(5, 6)),
+            span=SourceSpan(0, 6),
         ),
-        Identifier("c", start_pos=10, end_pos=11),
-        start_pos=0,
-        end_pos=11,
+        Identifier("c", span=SourceSpan(10, 11)),
+        span=SourceSpan(0, 11),
     )
     assert parse_expr("a && b == c") == BinaryExpression(
-        BinaryOperator("&&", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
+        BinaryOperator("&&", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
         BinaryExpression(
-            BinaryOperator("==", start_pos=7, end_pos=9),
-            Identifier("b", start_pos=5, end_pos=6),
-            Identifier("c", start_pos=10, end_pos=11),
-            start_pos=5,
-            end_pos=11,
+            BinaryOperator("==", span=SourceSpan(7, 9)),
+            Identifier("b", span=SourceSpan(5, 6)),
+            Identifier("c", span=SourceSpan(10, 11)),
+            span=SourceSpan(5, 11),
         ),
-        start_pos=0,
-        end_pos=11,
+        span=SourceSpan(0, 11),
     )
     assert parse_expr("a || b && c") == BinaryExpression(
-        BinaryOperator("||", start_pos=2, end_pos=4),
-        Identifier("a", start_pos=0, end_pos=1),
+        BinaryOperator("||", span=SourceSpan(2, 4)),
+        Identifier("a", span=SourceSpan(0, 1)),
         BinaryExpression(
-            BinaryOperator("&&", start_pos=7, end_pos=9),
-            Identifier("b", start_pos=5, end_pos=6),
-            Identifier("c", start_pos=10, end_pos=11),
-            start_pos=5,
-            end_pos=11,
+            BinaryOperator("&&", span=SourceSpan(7, 9)),
+            Identifier("b", span=SourceSpan(5, 6)),
+            Identifier("c", span=SourceSpan(10, 11)),
+            span=SourceSpan(5, 11),
         ),
-        start_pos=0,
-        end_pos=11,
+        span=SourceSpan(0, 11),
     )
     assert parse_expr("a && b || c") == BinaryExpression(
-        BinaryOperator("||", start_pos=7, end_pos=9),
+        BinaryOperator("||", span=SourceSpan(7, 9)),
         BinaryExpression(
-            BinaryOperator("&&", start_pos=2, end_pos=4),
-            Identifier("a", start_pos=0, end_pos=1),
-            Identifier("b", start_pos=5, end_pos=6),
-            start_pos=0,
-            end_pos=6,
+            BinaryOperator("&&", span=SourceSpan(2, 4)),
+            Identifier("a", span=SourceSpan(0, 1)),
+            Identifier("b", span=SourceSpan(5, 6)),
+            span=SourceSpan(0, 6),
         ),
-        Identifier("c", start_pos=10, end_pos=11),
-        start_pos=0,
-        end_pos=11,
+        Identifier("c", span=SourceSpan(10, 11)),
+        span=SourceSpan(0, 11),
     )
 
 
 def test_parse_conditional() -> None:
     assert parse_expr("a ? b : c") == Conditional(
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        Identifier("c", start_pos=8, end_pos=9),
-        start_pos=0,
-        end_pos=9,
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        Identifier("c", span=SourceSpan(8, 9)),
+        span=SourceSpan(0, 9),
     )
 
 
 def test_parse_paren() -> None:
     assert parse_expr("(a)") == Parenthesis(
-        Identifier("a", start_pos=1, end_pos=2), start_pos=0, end_pos=3
+        Identifier("a", span=SourceSpan(1, 2)), span=SourceSpan(0, 3)
     )
 
 
 def test_parse_array() -> None:
-    assert parse_expr("[1, 2, 3]") == Array(
+    assert parse_expr("[1, 2, 3]") == ArrayExpression(
         [
-            Literal(1, start_pos=1, end_pos=2),
-            Literal(2, start_pos=4, end_pos=5),
-            Literal(3, start_pos=7, end_pos=8),
+            Literal(Integer(1), span=SourceSpan(1, 2)),
+            Literal(Integer(2), span=SourceSpan(4, 5)),
+            Literal(Integer(3), span=SourceSpan(7, 8)),
         ],
-        start_pos=0,
-        end_pos=9,
+        span=SourceSpan(0, 9),
     )
-    assert parse_expr("[1, 2, 3, 4]") == Array(
+    assert parse_expr("[1, 2, 3, 4]") == ArrayExpression(
         [
-            Literal(1, start_pos=1, end_pos=2),
-            Literal(2, start_pos=4, end_pos=5),
-            Literal(3, start_pos=7, end_pos=8),
-            Literal(4, start_pos=10, end_pos=11),
+            Literal(Integer(1), span=SourceSpan(1, 2)),
+            Literal(Integer(2), span=SourceSpan(4, 5)),
+            Literal(Integer(3), span=SourceSpan(7, 8)),
+            Literal(Integer(4), span=SourceSpan(10, 11)),
         ],
-        start_pos=0,
-        end_pos=12,
+        span=SourceSpan(0, 12),
     )
 
 
 def test_parse_array_complex() -> None:
-    assert parse_expr("[(for), foo, baz]") == Array(
+    assert parse_expr("[(for), foo, baz]") == ArrayExpression(
         [
             Parenthesis(
-                Identifier("for", start_pos=2, end_pos=5), start_pos=1, end_pos=6
+                Identifier("for", span=SourceSpan(2, 5)), span=SourceSpan(1, 6)
             ),
-            Identifier("foo", start_pos=8, end_pos=11),
-            Identifier("baz", start_pos=13, end_pos=16),
+            Identifier("foo", span=SourceSpan(8, 11)),
+            Identifier("baz", span=SourceSpan(13, 16)),
         ],
-        start_pos=0,
-        end_pos=17,
+        span=SourceSpan(0, 17),
     )
-    with pytest.raises(UnexpectedToken):
+    with pytest.raises(DiagnosticError):
         parse_expr("[for, foo, baz]")
 
 
 def test_parse_object() -> None:
-    assert parse_expr('{ foo = "bar" }') == Object(
+    assert parse_expr('{ foo = "bar" }') == ObjectExpression(
         {
-            Identifier("foo", start_pos=2, end_pos=5): Literal(
-                "bar", start_pos=8, end_pos=13
+            Identifier("foo", span=SourceSpan(2, 5)): Literal(
+                String("bar"), span=SourceSpan(8, 13)
             )
         },
-        start_pos=0,
-        end_pos=15,
+        span=SourceSpan(0, 15),
     )
-    assert parse_expr("{ foo: bar }") == Object(
+    assert parse_expr("{ foo: bar }") == ObjectExpression(
         {
-            Identifier("foo", start_pos=2, end_pos=5): Identifier(
-                "bar", start_pos=7, end_pos=10
+            Identifier("foo", span=SourceSpan(2, 5)): Identifier(
+                "bar", span=SourceSpan(7, 10)
             )
         },
-        start_pos=0,
-        end_pos=12,
+        span=SourceSpan(0, 12),
     )
 
 
 def test_parse_object_complex() -> None:
-    assert parse_expr("{ (foo) = bar }") == Object(
+    assert parse_expr("{ (foo) = bar }") == ObjectExpression(
         {
             Parenthesis(
-                Identifier("foo", start_pos=3, end_pos=6), start_pos=2, end_pos=7
-            ): Identifier("bar", start_pos=10, end_pos=13)
+                Identifier("foo", span=SourceSpan(3, 6)), span=SourceSpan(2, 7)
+            ): Identifier("bar", span=SourceSpan(10, 13))
         },
-        start_pos=0,
-        end_pos=15,
+        span=SourceSpan(0, 15),
     )
-    assert parse_expr('{ foo = "bar", baz = 42 }') == Object(
+    assert parse_expr('{ foo = "bar", baz = 42 }') == ObjectExpression(
         {
-            Identifier("foo", start_pos=2, end_pos=5): Literal(
-                "bar", start_pos=8, end_pos=13
+            Identifier("foo", span=SourceSpan(2, 5)): Literal(
+                String("bar"), span=SourceSpan(8, 13)
             ),
-            Identifier("baz", start_pos=15, end_pos=18): Literal(
-                42, start_pos=21, end_pos=23
+            Identifier("baz", span=SourceSpan(15, 18)): Literal(
+                Integer(42), span=SourceSpan(21, 23)
             ),
         },
-        start_pos=0,
-        end_pos=25,
+        span=SourceSpan(0, 25),
     )
 
-    with pytest.raises(UnexpectedToken):
+    with pytest.raises(DiagnosticError):
         parse_expr("{ for = 1, baz = 2 }")
 
-    assert parse_expr('{ "for" = 1, baz = 2}') == Object(
+    assert parse_expr('{ "for" = 1, baz = 2}') == ObjectExpression(
         {
-            Literal("for", start_pos=2, end_pos=7): Literal(
-                1, start_pos=10, end_pos=11
+            Literal(String("for"), span=SourceSpan(2, 7)): Literal(
+                Integer(1), span=SourceSpan(10, 11)
             ),
-            Identifier("baz", start_pos=13, end_pos=16): Literal(
-                2, start_pos=19, end_pos=20
+            Identifier("baz", span=SourceSpan(13, 16)): Literal(
+                Integer(2), span=SourceSpan(19, 20)
             ),
         },
-        start_pos=0,
-        end_pos=21,
+        span=SourceSpan(0, 21),
     )
-    assert parse_expr("{ baz = 2, for = 1}") == Object(
+    assert parse_expr("{ baz = 2, for = 1}") == ObjectExpression(
         {
-            Identifier("baz", start_pos=2, end_pos=5): Literal(
-                2, start_pos=8, end_pos=9
+            Identifier("baz", span=SourceSpan(2, 5)): Literal(
+                Integer(2), span=SourceSpan(8, 9)
             ),
-            Identifier("for", start_pos=11, end_pos=14): Literal(
-                1, start_pos=17, end_pos=18
+            Identifier("for", span=SourceSpan(11, 14)): Literal(
+                Integer(1), span=SourceSpan(17, 18)
             ),
         },
-        start_pos=0,
-        end_pos=19,
+        span=SourceSpan(0, 19),
     )
-    assert parse_expr("{ (for) = 1, baz = 2}") == Object(
+    assert parse_expr("{ (for) = 1, baz = 2}") == ObjectExpression(
         {
             Parenthesis(
-                Identifier("for", start_pos=3, end_pos=6), start_pos=2, end_pos=7
-            ): Literal(1, start_pos=10, end_pos=11),
-            Identifier("baz", start_pos=13, end_pos=16): Literal(
-                2, start_pos=19, end_pos=20
+                Identifier("for", span=SourceSpan(3, 6)), span=SourceSpan(2, 7)
+            ): Literal(Integer(1), span=SourceSpan(10, 11)),
+            Identifier("baz", span=SourceSpan(13, 16)): Literal(
+                Integer(2), span=SourceSpan(19, 20)
             ),
         },
-        start_pos=0,
-        end_pos=21,
+        span=SourceSpan(0, 21),
     )
 
 
 def test_parse_function_call() -> None:
     assert parse_expr("foo()") == FunctionCall(
-        Identifier("foo", start_pos=0, end_pos=3), [], start_pos=0, end_pos=5
+        Identifier("foo", span=SourceSpan(0, 3)), [], span=SourceSpan(0, 5)
     )
     assert parse_expr("foo(1, 2, 3)") == FunctionCall(
-        Identifier("foo", start_pos=0, end_pos=3),
+        Identifier("foo", span=SourceSpan(0, 3)),
         [
-            Literal(1, start_pos=4, end_pos=5),
-            Literal(2, start_pos=7, end_pos=8),
-            Literal(3, start_pos=10, end_pos=11),
+            Literal(Integer(1), span=SourceSpan(4, 5)),
+            Literal(Integer(2), span=SourceSpan(7, 8)),
+            Literal(Integer(3), span=SourceSpan(10, 11)),
         ],
-        start_pos=0,
-        end_pos=12,
+        span=SourceSpan(0, 12),
     )
     assert parse_expr("foo(1, 2, 3...)") == FunctionCall(
-        Identifier("foo", start_pos=0, end_pos=3),
+        Identifier("foo", span=SourceSpan(0, 3)),
         [
-            Literal(1, start_pos=4, end_pos=5),
-            Literal(2, start_pos=7, end_pos=8),
-            Literal(3, start_pos=10, end_pos=11),
+            Literal(Integer(1), span=SourceSpan(4, 5)),
+            Literal(Integer(2), span=SourceSpan(7, 8)),
+            Literal(Integer(3), span=SourceSpan(10, 11)),
         ],
         var_args=True,
-        start_pos=0,
-        end_pos=15,
+        span=SourceSpan(0, 15),
     )
 
 
 def test_parse_get_attr() -> None:
     assert parse_expr("foo.bar") == GetAttr(
-        Identifier("foo", start_pos=0, end_pos=3),
-        GetAttrKey(Identifier("bar", start_pos=4, end_pos=7), start_pos=3, end_pos=7),
-        start_pos=0,
-        end_pos=7,
+        Identifier("foo", span=SourceSpan(0, 3)),
+        GetAttrKey(Identifier("bar", span=SourceSpan(4, 7)), span=SourceSpan(3, 7)),
+        span=SourceSpan(0, 7),
     )
 
 
 def test_parse_get_index() -> None:
     assert parse_expr("foo[0]") == GetIndex(
-        Identifier("foo", start_pos=0, end_pos=3),
-        GetIndexKey(Literal(0, start_pos=4, end_pos=5), start_pos=3, end_pos=6),
-        start_pos=0,
-        end_pos=6,
+        Identifier("foo", span=SourceSpan(0, 3)),
+        GetIndexKey(Literal(Integer(0), span=SourceSpan(4, 5)), span=SourceSpan(3, 6)),
+        span=SourceSpan(0, 6),
     )
     assert parse_expr("foo[bar]") == GetIndex(
-        Identifier("foo", start_pos=0, end_pos=3),
-        GetIndexKey(Identifier("bar", start_pos=4, end_pos=7), start_pos=3, end_pos=8),
-        start_pos=0,
-        end_pos=8,
+        Identifier("foo", span=SourceSpan(0, 3)),
+        GetIndexKey(Identifier("bar", span=SourceSpan(4, 7)), span=SourceSpan(3, 8)),
+        span=SourceSpan(0, 8),
     )
 
 
 def test_parse_get_attr_splat() -> None:
     assert parse_expr("foo.*") == AttrSplat(
-        Identifier("foo", start_pos=0, end_pos=3), [], start_pos=0, end_pos=5
+        Identifier("foo", span=SourceSpan(0, 3)), [], span=SourceSpan(0, 5)
     )
     assert parse_expr("foo.*.bar") == AttrSplat(
-        Identifier("foo", start_pos=0, end_pos=3),
-        [GetAttrKey(Identifier("bar", start_pos=6, end_pos=9), start_pos=5, end_pos=9)],
-        start_pos=0,
-        end_pos=9,
+        Identifier("foo", span=SourceSpan(0, 3)),
+        [GetAttrKey(Identifier("bar", span=SourceSpan(6, 9)), span=SourceSpan(5, 9))],
+        span=SourceSpan(0, 9),
     )
 
 
 def test_parse_index_splat() -> None:
     assert parse_expr("foo[*]") == IndexSplat(
-        Identifier("foo", start_pos=0, end_pos=3), [], start_pos=0, end_pos=6
+        Identifier("foo", span=SourceSpan(0, 3)), [], span=SourceSpan(0, 6)
     )
     assert parse_expr("foo[*].bar") == IndexSplat(
-        Identifier("foo", start_pos=0, end_pos=3),
-        [
-            GetAttrKey(
-                Identifier("bar", start_pos=7, end_pos=10), start_pos=6, end_pos=10
-            )
-        ],
-        start_pos=0,
-        end_pos=10,
+        Identifier("foo", span=SourceSpan(0, 3)),
+        [GetAttrKey(Identifier("bar", span=SourceSpan(7, 10)), span=SourceSpan(6, 10))],
+        span=SourceSpan(0, 10),
     )
     assert parse_expr("foo[*][3]") == IndexSplat(
-        Identifier("foo", start_pos=0, end_pos=3),
-        [GetIndexKey(Literal(3, start_pos=7, end_pos=8), start_pos=6, end_pos=9)],
-        start_pos=0,
-        end_pos=9,
+        Identifier("foo", span=SourceSpan(0, 3)),
+        [
+            GetIndexKey(
+                Literal(Integer(3), span=SourceSpan(7, 8)), span=SourceSpan(6, 9)
+            )
+        ],
+        span=SourceSpan(0, 9),
     )
     assert parse_expr("foo[*].bar[3]") == IndexSplat(
-        Identifier("foo", start_pos=0, end_pos=3),
+        Identifier("foo", span=SourceSpan(0, 3)),
         [
             GetAttrKey(
-                Identifier("bar", start_pos=7, end_pos=10), start_pos=6, end_pos=10
+                Identifier("bar", span=SourceSpan(7, 10)), span=SourceSpan(6, 10)
             ),
-            GetIndexKey(Literal(3, start_pos=11, end_pos=12), start_pos=10, end_pos=13),
+            GetIndexKey(
+                Literal(Integer(3), span=SourceSpan(11, 12)), span=SourceSpan(10, 13)
+            ),
         ],
-        start_pos=0,
-        end_pos=13,
+        span=SourceSpan(0, 13),
     )
 
 
 def test_parse_for_tuple_expr() -> None:
     assert parse_expr("[for a in b: a]") == ForTupleExpression(
         key_ident=None,
-        value_ident=Identifier("a", start_pos=5, end_pos=6),
-        collection=Identifier("b", start_pos=10, end_pos=11),
-        value=Identifier("a", start_pos=13, end_pos=14),
+        value_ident=Identifier("a", span=SourceSpan(5, 6)),
+        collection=Identifier("b", span=SourceSpan(10, 11)),
+        value=Identifier("a", span=SourceSpan(13, 14)),
         condition=None,
-        start_pos=0,
-        end_pos=15,
+        span=SourceSpan(0, 15),
     )
     assert parse_expr("[for a, b in c: a]") == ForTupleExpression(
-        key_ident=Identifier("a", start_pos=5, end_pos=6),
-        value_ident=Identifier("b", start_pos=8, end_pos=9),
-        collection=Identifier("c", start_pos=13, end_pos=14),
-        value=Identifier("a", start_pos=16, end_pos=17),
+        key_ident=Identifier("a", span=SourceSpan(5, 6)),
+        value_ident=Identifier("b", span=SourceSpan(8, 9)),
+        collection=Identifier("c", span=SourceSpan(13, 14)),
+        value=Identifier("a", span=SourceSpan(16, 17)),
         condition=None,
-        start_pos=0,
-        end_pos=18,
+        span=SourceSpan(0, 18),
     )
     assert parse_expr("[for a in b: a if a]") == ForTupleExpression(
         key_ident=None,
-        value_ident=Identifier("a", start_pos=5, end_pos=6),
-        collection=Identifier("b", start_pos=10, end_pos=11),
-        value=Identifier("a", start_pos=13, end_pos=14),
-        condition=Identifier("a", start_pos=18, end_pos=19),
-        start_pos=0,
-        end_pos=20,
+        value_ident=Identifier("a", span=SourceSpan(5, 6)),
+        collection=Identifier("b", span=SourceSpan(10, 11)),
+        value=Identifier("a", span=SourceSpan(13, 14)),
+        condition=Identifier("a", span=SourceSpan(18, 19)),
+        span=SourceSpan(0, 20),
     )
     assert parse_expr("[for a, b in c: a if a]") == ForTupleExpression(
-        key_ident=Identifier("a", start_pos=5, end_pos=6),
-        value_ident=Identifier("b", start_pos=8, end_pos=9),
-        collection=Identifier("c", start_pos=13, end_pos=14),
-        value=Identifier("a", start_pos=16, end_pos=17),
-        condition=Identifier("a", start_pos=21, end_pos=22),
-        start_pos=0,
-        end_pos=23,
+        key_ident=Identifier("a", span=SourceSpan(5, 6)),
+        value_ident=Identifier("b", span=SourceSpan(8, 9)),
+        collection=Identifier("c", span=SourceSpan(13, 14)),
+        value=Identifier("a", span=SourceSpan(16, 17)),
+        condition=Identifier("a", span=SourceSpan(21, 22)),
+        span=SourceSpan(0, 23),
     )
 
 
 def test_parse_for_object_expr() -> None:
     assert parse_expr("{for a, b in c: a => b}") == ForObjectExpression(
-        key_ident=Identifier("a", start_pos=5, end_pos=6),
-        value_ident=Identifier("b", start_pos=8, end_pos=9),
-        collection=Identifier("c", start_pos=13, end_pos=14),
-        key=Identifier("a", start_pos=16, end_pos=17),
-        value=Identifier("b", start_pos=21, end_pos=22),
+        key_ident=Identifier("a", span=SourceSpan(5, 6)),
+        value_ident=Identifier("b", span=SourceSpan(8, 9)),
+        collection=Identifier("c", span=SourceSpan(13, 14)),
+        key=Identifier("a", span=SourceSpan(16, 17)),
+        value=Identifier("b", span=SourceSpan(21, 22)),
         condition=None,
         grouping_mode=False,
-        start_pos=0,
-        end_pos=23,
+        span=SourceSpan(0, 23),
     )
 
     assert parse_expr("{for a in b: a => a}") == ForObjectExpression(
         key_ident=None,
-        value_ident=Identifier("a", start_pos=5, end_pos=6),
-        collection=Identifier("b", start_pos=10, end_pos=11),
-        key=Identifier("a", start_pos=13, end_pos=14),
-        value=Identifier("a", start_pos=18, end_pos=19),
+        value_ident=Identifier("a", span=SourceSpan(5, 6)),
+        collection=Identifier("b", span=SourceSpan(10, 11)),
+        key=Identifier("a", span=SourceSpan(13, 14)),
+        value=Identifier("a", span=SourceSpan(18, 19)),
         condition=None,
         grouping_mode=False,
-        start_pos=0,
-        end_pos=20,
+        span=SourceSpan(0, 20),
     )
 
     assert parse_expr("{for a in b: a => a if a}") == ForObjectExpression(
         key_ident=None,
-        value_ident=Identifier("a", start_pos=5, end_pos=6),
-        collection=Identifier("b", start_pos=10, end_pos=11),
-        key=Identifier("a", start_pos=13, end_pos=14),
-        value=Identifier("a", start_pos=18, end_pos=19),
-        condition=Identifier("a", start_pos=23, end_pos=24),
+        value_ident=Identifier("a", span=SourceSpan(5, 6)),
+        collection=Identifier("b", span=SourceSpan(10, 11)),
+        key=Identifier("a", span=SourceSpan(13, 14)),
+        value=Identifier("a", span=SourceSpan(18, 19)),
+        condition=Identifier("a", span=SourceSpan(23, 24)),
         grouping_mode=False,
-        start_pos=0,
-        end_pos=25,
+        span=SourceSpan(0, 25),
     )
 
     assert parse_expr("{for i, v in array : v => i...}") == ForObjectExpression(
-        key_ident=Identifier("i", start_pos=5, end_pos=6),
-        value_ident=Identifier("v", start_pos=8, end_pos=9),
-        collection=Identifier("array", start_pos=13, end_pos=18),
-        key=Identifier("v", start_pos=21, end_pos=22),
-        value=Identifier("i", start_pos=26, end_pos=27),
+        key_ident=Identifier("i", span=SourceSpan(5, 6)),
+        value_ident=Identifier("v", span=SourceSpan(8, 9)),
+        collection=Identifier("array", span=SourceSpan(13, 18)),
+        key=Identifier("v", span=SourceSpan(21, 22)),
+        value=Identifier("i", span=SourceSpan(26, 27)),
         condition=None,
         grouping_mode=True,
-        start_pos=0,
-        end_pos=31,
+        span=SourceSpan(0, 31),
     )
 
     assert parse_expr("{for i, v in array : v => i... if i}") == ForObjectExpression(
-        key_ident=Identifier("i", start_pos=5, end_pos=6),
-        value_ident=Identifier("v", start_pos=8, end_pos=9),
-        collection=Identifier("array", start_pos=13, end_pos=18),
-        key=Identifier("v", start_pos=21, end_pos=22),
-        value=Identifier("i", start_pos=26, end_pos=27),
-        condition=Identifier("i", start_pos=34, end_pos=35),
+        key_ident=Identifier("i", span=SourceSpan(5, 6)),
+        value_ident=Identifier("v", span=SourceSpan(8, 9)),
+        collection=Identifier("array", span=SourceSpan(13, 18)),
+        key=Identifier("v", span=SourceSpan(21, 22)),
+        value=Identifier("i", span=SourceSpan(26, 27)),
+        condition=Identifier("i", span=SourceSpan(34, 35)),
         grouping_mode=True,
-        start_pos=0,
-        end_pos=36,
+        span=SourceSpan(0, 36),
     )
 
 
 def test_parse_attribute() -> None:
-    assert parse_expr_or_attribute("a = b") == Attribute(
-        Identifier("a", start_pos=0, end_pos=1),
-        Identifier("b", start_pos=4, end_pos=5),
-        start_pos=0,
-        end_pos=5,
+    assert parse_expr_or_stmt("a = b") == Attribute(
+        Identifier("a", span=SourceSpan(0, 1)),
+        Identifier("b", span=SourceSpan(4, 5)),
+        span=SourceSpan(0, 5),
     )
 
 
@@ -648,94 +590,81 @@ def test_parse_block() -> None:
     assert parse_module("locals {\na = b\n}") == Module(
         [
             Block(
-                Identifier("locals", start_pos=0, end_pos=6),
+                Identifier("locals", span=SourceSpan(0, 6)),
                 [],
                 [
                     Attribute(
-                        Identifier("a", start_pos=9, end_pos=10),
-                        Identifier("b", start_pos=13, end_pos=14),
-                        start_pos=9,
-                        end_pos=14,
+                        Identifier("a", span=SourceSpan(9, 10)),
+                        Identifier("b", span=SourceSpan(13, 14)),
+                        span=SourceSpan(9, 14),
                     )
                 ],
-                start_pos=0,
-                end_pos=16,
+                span=SourceSpan(0, 16),
             ),
         ],
-        start_pos=0,
-        end_pos=16,
+        span=SourceSpan(0, 16),
     )
 
     assert parse_module("""resource "a" {\na = b\n}""") == Module(
         [
             Block(
-                Identifier("resource", start_pos=0, end_pos=8),
-                [Literal("a", start_pos=9, end_pos=12)],
+                Identifier("resource", span=SourceSpan(0, 8)),
+                [Literal(String("a"), span=SourceSpan(9, 12))],
                 [
                     Attribute(
-                        Identifier("a", start_pos=15, end_pos=16),
-                        Identifier("b", start_pos=19, end_pos=20),
-                        start_pos=15,
-                        end_pos=20,
+                        Identifier("a", span=SourceSpan(15, 16)),
+                        Identifier("b", span=SourceSpan(19, 20)),
+                        span=SourceSpan(15, 20),
                     )
                 ],
-                start_pos=0,
-                end_pos=22,
+                span=SourceSpan(0, 22),
             )
         ],
-        start_pos=0,
-        end_pos=22,
+        span=SourceSpan(0, 22),
     )
 
     assert parse_module("""resource a "b" {\na = b\n}""") == Module(
         [
             Block(
-                Identifier("resource", start_pos=0, end_pos=8),
+                Identifier("resource", span=SourceSpan(0, 8)),
                 [
-                    Identifier("a", start_pos=9, end_pos=10),
-                    Literal("b", start_pos=11, end_pos=14),
+                    Identifier("a", span=SourceSpan(9, 10)),
+                    Literal(String("b"), span=SourceSpan(11, 14)),
                 ],
                 [
                     Attribute(
-                        Identifier("a", start_pos=17, end_pos=18),
-                        Identifier("b", start_pos=21, end_pos=22),
-                        start_pos=17,
-                        end_pos=22,
+                        Identifier("a", span=SourceSpan(17, 18)),
+                        Identifier("b", span=SourceSpan(21, 22)),
+                        span=SourceSpan(17, 22),
                     )
                 ],
-                start_pos=0,
-                end_pos=24,
+                span=SourceSpan(0, 24),
             )
         ],
-        start_pos=0,
-        end_pos=24,
+        span=SourceSpan(0, 24),
     )
 
     assert parse_module("""locals {\na = 1\nb = 2\n}""") == Module(
         [
             Block(
-                Identifier("locals", start_pos=0, end_pos=6),
+                Identifier("locals", span=SourceSpan(0, 6)),
                 [],
                 [
                     Attribute(
-                        Identifier("a", start_pos=9, end_pos=10),
-                        Literal(1, start_pos=13, end_pos=14),
-                        start_pos=9,
-                        end_pos=14,
+                        Identifier("a", span=SourceSpan(9, 10)),
+                        Literal(Integer(1), span=SourceSpan(13, 14)),
+                        span=SourceSpan(9, 14),
                     ),
                     Attribute(
-                        Identifier("b", start_pos=15, end_pos=16),
-                        Literal(2, start_pos=19, end_pos=20),
-                        start_pos=15,
-                        end_pos=20,
+                        Identifier("b", span=SourceSpan(15, 16)),
+                        Literal(Integer(2), span=SourceSpan(19, 20)),
+                        span=SourceSpan(15, 20),
                     ),
                 ],
-                start_pos=0,
-                end_pos=22,
+                span=SourceSpan(0, 22),
             )
         ],
-        start_pos=0,
-        end_pos=22,
+        span=SourceSpan(0, 22),
     )
 
 
@@ -753,54 +682,46 @@ def test_parse_multiple_blocks() -> None:
         }
         """).strip()
     ) == Module(
-        start_pos=0,
-        end_pos=100,
+        span=SourceSpan(0, 100),
         body=[
             Block(
-                start_pos=0,
-                end_pos=29,
-                type=Identifier(start_pos=0, end_pos=6, name="block1"),
+                span=SourceSpan(0, 29),
+                type=Identifier(span=SourceSpan(0, 6), name="block1"),
                 labels=[],
                 body=[
                     Attribute(
-                        start_pos=13,
-                        end_pos=26,
-                        key=Identifier(start_pos=13, end_pos=18, name="value"),
-                        value=Literal(start_pos=21, end_pos=26, value="foo"),
+                        span=SourceSpan(13, 26),
+                        key=Identifier(span=SourceSpan(13, 18), name="value"),
+                        value=Literal(span=SourceSpan(21, 26), value=String("foo")),
                     )
                 ],
             ),
             Block(
-                start_pos=29,
-                end_pos=60,
-                type=Identifier(start_pos=29, end_pos=35, name="block2"),
-                labels=[Identifier(start_pos=36, end_pos=40, name="arg1")],
+                span=SourceSpan(29, 60),
+                type=Identifier(span=SourceSpan(29, 35), name="block2"),
+                labels=[Identifier(span=SourceSpan(36, 40), name="arg1")],
                 body=[
                     Attribute(
-                        start_pos=47,
-                        end_pos=57,
-                        key=Identifier(start_pos=47, end_pos=52, name="value"),
-                        value=Literal(start_pos=55, end_pos=57, value=42),
+                        span=SourceSpan(47, 57),
+                        key=Identifier(span=SourceSpan(47, 52), name="value"),
+                        value=Literal(span=SourceSpan(55, 57), value=Integer(42)),
                     )
                 ],
             ),
             Block(
-                start_pos=60,
-                end_pos=100,
-                type=Identifier(start_pos=60, end_pos=66, name="block3"),
+                span=SourceSpan(60, 100),
+                type=Identifier(span=SourceSpan(60, 66), name="block3"),
                 labels=[
-                    Literal(start_pos=67, end_pos=73, value="arg2"),
-                    Identifier(start_pos=74, end_pos=78, name="arg3"),
+                    Literal(span=SourceSpan(67, 73), value=String("arg2")),
+                    Identifier(span=SourceSpan(74, 78), name="arg3"),
                 ],
                 body=[
                     Attribute(
-                        start_pos=85,
-                        end_pos=98,
-                        key=Identifier(start_pos=85, end_pos=90, name="value"),
+                        span=SourceSpan(85, 98),
+                        key=Identifier(span=SourceSpan(85, 90), name="value"),
                         value=FunctionCall(
-                            start_pos=93,
-                            end_pos=98,
-                            ident=Identifier(start_pos=93, end_pos=96, name="bar"),
+                            span=SourceSpan(93, 98),
+                            ident=Identifier(span=SourceSpan(93, 96), name="bar"),
                             args=[],
                             var_args=False,
                         ),

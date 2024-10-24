@@ -1,24 +1,20 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterable,
-    MutableMapping,
-    Self,
-    TypeAliasType,
-    cast,
-)
+from typing import Self
 
-from pyhcl2 import BinaryExpression
-from pyhcl2._ast import (
-    Array,
+from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import LabeledSpan, SourceSpan
+from rich.console import Group
+from rich.text import Text
+
+from pyhcl2.nodes import (
+    ArrayExpression,
     Attribute,
     AttrSplat,
+    BinaryExpression,
     Block,
     Conditional,
     ForObjectExpression,
@@ -31,26 +27,26 @@ from pyhcl2._ast import (
     Identifier,
     IndexSplat,
     Literal,
-    LiteralValue,
     Node,
-    Object,
+    ObjectExpression,
     Parenthesis,
     UnaryExpression,
 )
+from pyhcl2.rich_utils import Inline
+from pyhcl2.values import Array, Boolean, Integer, Null, Object, String, Unknown, Value
 
-if TYPE_CHECKING:
-    # Mypy doesn't properly support TypeAliasType yet
-    Value = LiteralValue | Mapping[str, "Value"] | Sequence["Value"]
-else:
-    Value = TypeAliasType(
-        "Value", LiteralValue | Mapping[str, "Value"] | Sequence["Value"]
-    )
+camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
 
 @dataclass
 class EvaluationScope:
     parent: Self | None = None
     variables: MutableMapping[str, Value] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        for key, value in self.variables.items():
+            if not isinstance(value, Value):
+                raise TypeError(f"Variable {key} is not a Value")
 
     def __getitem__(self, item: str) -> Value:
         try:
@@ -59,7 +55,7 @@ class EvaluationScope:
             pass
         if self.parent:
             return self.parent[item]
-        raise ValueError(f"Variable {item} not set")
+        raise KeyError(f"Variable {item} not set")
 
     def __setitem__(self, key: str, value: Value) -> None:
         self.variables[key] = value
@@ -75,329 +71,629 @@ class EvaluationScope:
         return EvaluationScope(parent=self)
 
 
-camel_to_snake_pattern = re.compile(r"(?<!^)(?=[A-Z])")
-
-
-# noinspection PyMethodMayBeStatic
 @dataclass
 class Evaluator:
-    # Note: We MUST not short-circuit if self.can_short_circuit is False
-    can_short_circuit: bool = True
     intrinsic_functions: Mapping[str, Callable[..., Value]] = field(
         default_factory=dict
     )
 
-    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:
-        method = (
-            f"_eval_{camel_to_snake_pattern.sub('_', expr.__class__.__name__).lower()}"
-        )
-        # print(f"Calling {method} with {expr}")
-        if hasattr(self, method):
-            return getattr(self, method)(expr, scope)
-        else:
-            raise ValueError(f"Unsupported expression type {expr}")
+    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:  # noqa: PLR0912
+        match expr:
+            case Block() as expr:
+                result = self._eval_block(expr, scope)
+            case Literal() as expr:
+                result = self._eval_literal(expr, scope)
+            case ArrayExpression() as expr:
+                result = self._eval_array_expression(expr, scope)
+            case ObjectExpression() as expr:
+                result = self._eval_object_expression(expr, scope)
+            case Identifier() as expr:
+                result = self._eval_identifier(expr, scope)
+            case Parenthesis() as expr:
+                result = self._eval_parenthesis(expr, scope)
+            case BinaryExpression() as expr:
+                result = self._eval_binary_expression(expr, scope)
+            case UnaryExpression() as expr:
+                result = self._eval_unary_expression(expr, scope)
+            case Attribute() as expr:
+                result = self._eval_attribute(expr, scope)
+            case GetAttr() as expr:
+                result = self._eval_get_attr(expr, scope)
+            case GetIndex() as expr:
+                result = self._eval_get_index(expr, scope)
+            case FunctionCall() as expr:
+                result = self._eval_function_call(expr, scope)
+            case Conditional() as expr:
+                result = self._eval_conditional(expr, scope)
+            case ForTupleExpression() as expr:
+                result = self._eval_for_tuple_expression(expr, scope)
+            case ForObjectExpression() as expr:
+                result = self._eval_for_object_expression(expr, scope)
+            case AttrSplat() as expr:
+                result = self._eval_attr_splat(expr, scope)
+            case IndexSplat() as expr:
+                result = self._eval_index_splat(expr, scope)
+            case _:
+                raise DiagnosticError(
+                    code="pyhcl2::evaluator::unsupported_node",
+                    message=f"Unsupported node type {expr.__class__.__name__}",
+                    labels=[
+                        LabeledSpan(expr.span, "unsupported expression"),
+                    ],
+                )
 
-    def _eval_block(self, node: Block, scope: EvaluationScope) -> Value:
-        result: dict[str, Value] = {}
-
-        for stmt in node.body:
-            if isinstance(stmt, Block):
-                key = stmt.key_path
-                value = self.eval(stmt, scope.child())
-                result_iter = result
-                for k in key[:-1]:
-                    result_iter = cast(dict[str, Value], result_iter.setdefault(k, {}))
-                cast(list[Value], result_iter.setdefault(key[-1], [])).append(value)
-
-            elif isinstance(stmt, Attribute):
-                key = stmt.key_path
-                value = self.eval(stmt, scope.child())
-                result_iter = result
-                for k in key[:-1]:
-                    result_iter = cast(dict[str, Value], result_iter.setdefault(k, {}))
-                result_iter[key[-1]] = value
-            else:
-                raise TypeError(f"Unsupported statement type {stmt}")
-
+        # rich.print(Inline(Text("eval", style=STYLE_FUNCTION), "(", expr, "):  ", result, NewLine()))
+        if result.span is None:
+            result = result.with_span(expr.span)
         return result
 
-    def _eval_attribute(self, node: Attribute, scope: EvaluationScope) -> Value:
-        value = self.eval(node.value, scope)
-        scope[node.key.name] = value
-        return value
+    def _eval_block(self, block: Block, scope: EvaluationScope) -> Value:
+        result: dict[String, Value] = {}
+
+        for stmt in block.body:
+            match stmt:
+                case Attribute() as attr:
+                    key = attr.key.as_string()
+                    value = self.eval(stmt, scope.child())
+
+                    if key in result:
+                        raise DiagnosticError(
+                            code="pyhcl2::evaluator::block::duplicate_key",
+                            message="Duplicate key in block",
+                            labels=[LabeledSpan(attr.key.span, "duplicate key")],
+                        )
+
+                    result[key] = value
+
+                case Block() as block:
+                    keys = block.keys
+                    value = self.eval(block, scope.child())
+
+                    mapping: MutableMapping[String, Value] = result
+                    for key in keys[:-1]:
+                        match mapping.get(key, None):
+                            case None:
+                                mapping = mapping[key] = Object({})
+                            case Object() as obj:
+                                mapping = obj
+                            case _:
+                                raise DiagnosticError(
+                                    code="pyhcl2::evaluator::block::key_conflict",
+                                    message="Key conflict in block",
+                                    labels=[LabeledSpan(block.span, "key conflict")],
+                                )
+
+                    match mapping.get(keys[-1], None):
+                        case None:
+                            mapping[keys[-1]] = Array([value])
+                        case Array() as array:
+                            array.append(value)
+                        case _:
+                            raise DiagnosticError(
+                                code="pyhcl2::evaluator::block::key_conflict",
+                                message="Key conflict in block",
+                                labels=[LabeledSpan(block.span, "key conflict")],
+                            )
+
+        return Object(result)
+
+    @staticmethod
+    def _eval_literal(expr: Literal, _scope: EvaluationScope) -> Value:
+        return expr.value
+
+    def _eval_array_expression(
+        self, expr: ArrayExpression, scope: EvaluationScope
+    ) -> Value:
+        return Array([self.eval(item, scope) for item in expr.values])
+
+    def _eval_object_expression(
+        self, obj: ObjectExpression, scope: EvaluationScope
+    ) -> Value:
+        result: dict[String, Value] = {}
+
+        unknown_keys = []
+
+        for key_expr, value_expr in obj.fields.items():
+            resolved_key: String
+            match key_expr:
+                case Identifier(name):
+                    resolved_key = String(name)
+                case Literal(String() as string):
+                    resolved_key = string
+                case Parenthesis(expr):
+                    key = self.eval(expr, scope)
+
+                    match key:
+                        case Unknown() as key:
+                            unknown_keys.append(key)
+                            continue
+                        case String() as key:
+                            resolved_key = key
+                        case _:
+                            raise DiagnosticError(
+                                code="pyhcl2::evaluator::object::unsupported_key",
+                                message="Unsupported key type in object",
+                                labels=[LabeledSpan(expr.span, key.type_name)],
+                            )
+                case _:
+                    raise DiagnosticError(
+                        code="pyhcl2::evaluator::object::unsupported_key",
+                        message="Unsupported key type in object",
+                        labels=[LabeledSpan(key_expr.span, "unsupported key")],
+                        notes=[
+                            Inline(
+                                "[blue]help:[/blue] ",
+                                "Did you mean `",
+                                Parenthesis(key_expr),
+                                " = ",
+                                value_expr,
+                                "`?",
+                            )
+                        ],
+                    )
+            value = self.eval(value_expr, scope)
+            if isinstance(value, Unknown):
+                value = value.indirect()
+            result[resolved_key] = value
+
+        if unknown_keys:
+            return Unknown.indirect(*unknown_keys)
+
+        return Object(result)
+
+    @staticmethod
+    def _eval_identifier(identifier: Identifier, scope: EvaluationScope) -> Value:
+        try:
+            return scope[identifier.name]
+        except KeyError:
+            return Unknown.ident(identifier)
+
+    def _eval_parenthesis(self, paren: Parenthesis, scope: EvaluationScope) -> Value:
+        return self.eval(paren.expr, scope)
 
     def _eval_binary_expression(
-        self, node: BinaryExpression, scope: EvaluationScope
+        self, expr: BinaryExpression, scope: EvaluationScope
     ) -> Value:
-        # Note: We MUST not short-circuit if self.can_short_circuit is False
-        # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
-        left = self.eval(node.left, scope)
-        right = self.eval(node.right, scope)
-
-        operations = {
+        operation = {
             "+": "__add__",
             "-": "__sub__",
             "*": "__mul__",
             "/": "__truediv__",
             "%": "__mod__",
-            "==": "__eq__",
-            "!=": "__ne__",
+            "==": "__equals__",
+            "!=": "__not_equals__",
             "<": "__lt__",
             ">": "__gt__",
             "<=": "__le__",
             ">=": "__ge__",
-            "&&": lambda x, y: x and y,
-            "||": lambda x, y: x or y,
-        }
+            "&&": "__and__",
+            "||": "__or__",
+        }[expr.op.type]
 
-        operation = operations[node.op.type]
-        if callable(operation):
-            return operation(left, right)
-        else:
-            assert isinstance(operation, str)
-            return getattr(left, operation)(right)
+        left = self.eval(expr.left, scope)
+        try:
+            if isinstance(left, Unknown):
+                return Unknown.indirect(left, self.eval(expr.right, scope))
+
+            operator = getattr(left, operation)
+            right = self.eval(expr.right, scope)
+
+            if isinstance(right, Unknown):
+                return right
+
+            result = operator(right)
+
+            if result is NotImplemented:
+                raise NotImplementedError()  # noqa: TRY301
+            else:
+                return result
+
+        except (AttributeError, NotImplementedError):
+            right = self.eval(expr.right, scope)
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::binary_expression::unsupported_operator",
+                message=f"Binary operator `{expr.op.type}` not implemented for operands of types {left.type_name} and {right.type_name}",
+                labels=[
+                    LabeledSpan(expr.left.span, left.type_name),
+                    LabeledSpan(expr.op.span, "unsupported operator"),
+                    LabeledSpan(expr.right.span, right.type_name),
+                ],
+            ) from None
+        except ArithmeticError as e:
+            right = self.eval(expr.right, scope)
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::binary_expression::arithmetic_error",
+                message=f"An {e} error occurred",
+                labels=[
+                    LabeledSpan(
+                        expr.left.span, Group(Text("left operand:", end=" "), left)
+                    ),
+                    LabeledSpan(expr.op.span, str(e)),
+                    LabeledSpan(
+                        expr.right.span, Group(Text("right operand:", end=" "), right)
+                    ),
+                ],
+            ).with_context("while evaluating binary expression")
 
     def _eval_unary_expression(
-        self, node: UnaryExpression, scope: EvaluationScope
+        self, expr: UnaryExpression, scope: EvaluationScope
     ) -> Value:
-        value = self.eval(node.expr, scope)
+        value = self.eval(expr.expr, scope)
 
-        operations = {
-            "-": "__neg__",
-            "!": lambda x: not x,
-        }
+        try:
+            operation = {
+                "-": "__neg__",
+                "!": "__not__",
+            }[expr.op.type]
+            result = getattr(value, operation)()
 
-        operation = operations[node.op.type]
-        if callable(operation):
-            return operation(value)
-        else:
-            assert isinstance(operation, str)
-            return getattr(value, operation)()
+            if result is NotImplemented:
+                raise NotImplementedError()  # noqa: TRY301
+            else:
+                return result
 
-    def _eval_get_attr(self, node: GetAttr, scope: EvaluationScope) -> Value:
-        on = self.eval(node.on, scope)
-        return self._evaluate_get_attr(on, node.key, scope)
+        except (AttributeError, NotImplementedError):
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::unsupported_unary_operator",
+                message=f"Unary operator `{expr.op.type}` not implemented for operand of type {value.type_name}",
+                labels=[
+                    LabeledSpan(expr.op.span, "unsupported operator"),
+                    LabeledSpan(expr.expr.span, value.type_name),
+                ],
+            )
 
+    def _eval_attribute(self, attr: Attribute, scope: EvaluationScope) -> Value:
+        value = self.eval(attr.value, scope)
+        scope[attr.key.name] = value
+        return value
+
+    def _eval_get_attr(self, expr: GetAttr, scope: EvaluationScope) -> Value:
+        on = self.eval(expr.on, scope)
+        return self._evaluate_get_attr(on, expr.on.span, expr.key, scope)
+
+    def _eval_get_index(self, expr: GetIndex, scope: EvaluationScope) -> Value:
+        on = self.eval(expr.on, scope)
+        return self._evaluate_get_index(on, expr.on.span, expr.key, scope)
+
+    @staticmethod
     def _evaluate_get_attr(
-        self, on: Value, key: GetAttrKey, _scope: EvaluationScope
+        on: Value, on_span: SourceSpan, key: GetAttrKey, _scope: EvaluationScope
     ) -> Value:
         key_value = key.ident.name
 
-        try:
-            assert isinstance(on, Mapping)
-            return on[key_value]
-        except KeyError:
-            raise ValueError(f"Key {key_value} not found in {on}")
-        except IndexError:
-            raise ValueError(f"Index {key_value} out of bounds in {on}")
+        if isinstance(on, Unknown):
+            return on.direct(key.ident.span, key.ident.name)
 
-    def _eval_get_index(self, node: GetIndex, scope: EvaluationScope) -> Value:
-        on = self.eval(node.on, scope)
-        return self._evaluate_get_index(on, node.key, scope)
+        if not isinstance(on, Object):
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::get_attr::unsupported_type",
+                message="Cannot get attribute from non-object type",
+                labels=[
+                    LabeledSpan(on_span, on.type_name),
+                    LabeledSpan(key.ident.span, "unsupported attribute"),
+                ],
+            )
+
+        try:
+            return on[String(key_value)]
+        except KeyError:
+            return Unknown().direct(key.ident.span, key_value)
 
     def _evaluate_get_index(
-        self, on: Value, key: GetIndexKey, scope: EvaluationScope
+        self, on: Value, on_span: SourceSpan, key: GetIndexKey, scope: EvaluationScope
     ) -> Value:
         key_value = self.eval(key.expr, scope)
 
-        # TODO: Figure out a better way to handle this
-        if str(key_value.__class__.__name__) == "VisitedVariablesTracker":
-            return None
-
         try:
-            if isinstance(on, Mapping):
-                assert isinstance(key_value, str)
-                return on[key_value]
-            elif isinstance(on, Sequence) and not isinstance(on, str):
-                assert isinstance(key_value, int)
-                return on[key_value]
-            else:
-                raise TypeError(f"Invalid index operation on {type(on)} {on}")
-        except KeyError:
-            raise ValueError(f"Key {key_value} not found in {on}")
-        except IndexError:
-            raise ValueError(f"Index {key_value} out of bounds in {on}")
-
-    def _eval_literal(self, node: Literal, _ctx: EvaluationScope) -> Value:
-        return node.value
-
-    def _eval_identifier(self, node: Identifier, scope: EvaluationScope) -> Value:
-        try:
-            return scope[node.name]
-        except KeyError:
-            raise ValueError(f"Variable {node.name} not set")
-
-    def _eval_object(self, node: Object, scope: EvaluationScope) -> Value:
-        result: dict[str, Value] = {}
-        for key_expr, value_expr in node.fields.items():
-            key: Value
-            match key_expr:
-                case Identifier(name):
-                    key = name
-                case Literal(str(literal)):
-                    key = literal
-                case Parenthesis(expr):
-                    key = self.eval(expr, scope)
-                    if not isinstance(key, str):
-                        raise TypeError(f"Invalid key expression {key_expr}")
+            match on, key_value:
+                case Unknown() as on, Unknown() as key_value:
+                    return Unknown.indirect(on, key_value)
+                case Unknown() as on, String(raw_str):
+                    return on.direct(key.expr.span, raw_str)
+                case Unknown() as on, Integer():
+                    return Unknown.indirect(on, key_value)
+                case Object() as obj, String() as key_value:
+                    return obj[key_value]
+                case Array() as on, Integer(int_raw):
+                    return on[int_raw]
+                case Object(), Unknown() as key_value:
+                    return key_value
                 case _:
-                    raise ValueError(f"Invalid key expression {key_expr}")
-
-            value = self.eval(value_expr, scope)
-            result[key] = value
-        return result
-
-    def _eval_array(self, node: Array, scope: EvaluationScope) -> Value:
-        return [self.eval(item, scope) for item in node.values]
-
-    def _eval_function_call(self, func: FunctionCall, scope: EvaluationScope) -> Value:
-        if func.var_args:
-            raise NotImplementedError("Var arg function calls are not supported yet")
-
-        if func.ident.name in self.intrinsic_functions:
-            return self.intrinsic_functions[func.ident.name](
-                *[self.eval(arg, scope) for arg in func.args]
+                    raise DiagnosticError(
+                        code="pyhcl2::evaluator::get_index::unsupported_type",
+                        message=f"Cannot index into {on.type_name} with {key_value.type_name} key",
+                        labels=[
+                            LabeledSpan(on_span, on.type_name),
+                            LabeledSpan(key.expr.span, key_value.type_name),
+                        ],
+                    )
+        except KeyError:
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::get_index::missing_key",
+                message="Key not found in object",
+                labels=[
+                    LabeledSpan(on_span, on.type_name),
+                    LabeledSpan(key.expr.span, "key"),
+                ],
+            )
+        except IndexError:
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::get_index::index_out_of_bounds",
+                message="Index out of bounds",
+                labels=[
+                    LabeledSpan(on_span, on.type_name),
+                    LabeledSpan(key.expr.span, "index"),
+                ],
             )
 
-        raise NotImplementedError(f"Unsupported function call {func.ident.name}")
-
-    def _eval_conditional(self, node: Conditional, scope: EvaluationScope) -> Value:
-        condition = self.eval(node.cond, scope)
-        # Note: We MUST not short-circuit if self.can_short_circuit is False
-        # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
-        then_result = self.eval(node.then_expr, scope)
-        else_result = self.eval(node.else_expr, scope)
-
-        if condition:
-            return then_result
-        else:
-            return else_result
-
-    def _eval_parenthesis(self, node: Parenthesis, scope: EvaluationScope) -> Value:
-        return self.eval(node.expr, scope)
-
-    def _eval_for_tuple_expression(
-        self, node: ForTupleExpression, scope: EvaluationScope
-    ) -> Value:
-        collection = self.eval(node.collection, scope)
-        result: list[Value] = []
-
-        if collection is None:
-            return result
-
-        iterator: Iterable[tuple[Any, Value]] | None = (
-            collection.items()
-            if isinstance(collection, Mapping)
-            else enumerate(collection)
-            if isinstance(collection, Sequence) and not isinstance(collection, str)
-            else None
-        )  # type: ignore
-
-        if iterator is None:
-            raise TypeError(f"Type of {collection} is not iterable")
-
-        for k, v in iterator:
-            child_ctx = scope.child()
-            child_ctx[node.value_ident.name] = v
-            if node.key_ident:
-                child_ctx[node.key_ident.name] = k
-
-            condition = (
-                self.eval(node.condition, child_ctx)
-                if node.condition is not None
-                else True
+    def _eval_function_call(self, call: FunctionCall, scope: EvaluationScope) -> Value:
+        if call.var_args:
+            # TODO
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::function_call::unsupported_var_args",
+                message="Function calls with var args are not supported",
+                labels=[LabeledSpan(call.span, "call with var args")],
             )
-            # Note: We MUST not short-circuit if self.can_short_circuit is False
-            # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
-            value = self.eval(node.value, child_ctx)
-            if condition is True:
-                result.append(value)
 
-        return result
+        if call.ident.name in self.intrinsic_functions:
+            args = [self.eval(arg, scope) for arg in call.args]
+            if any(isinstance(arg.resolve(), Unknown) for arg in args):
+                return Unknown.indirect(*args)
 
-    def _eval_for_object_expression(
-        self, node: ForObjectExpression, scope: EvaluationScope
-    ) -> Value:
-        if node.grouping_mode:
-            raise NotImplementedError("Grouping mode is not supported yet")
+            try:
+                return self.intrinsic_functions[call.ident.name](*args)
+            except TypeError as e:
+                raise DiagnosticError(
+                    code="pyhcl2::evaluator::function_call::invalid_args",
+                    message="Invalid arguments passed to function",
+                    labels=[LabeledSpan(call.args_span, "invalid arguments")],
+                ) from e
 
-        collection = self.eval(node.collection, scope)
-        result: dict[str, Value] = {}
-
-        if collection is None:
-            return result
-
-        iterator: Iterable[tuple[str | int, Value]] | None = (
-            collection.items()
-            if hasattr(collection, "items")
-            else enumerate(collection)
-            if isinstance(collection, Sequence) and not isinstance(collection, str)
-            else None
+        raise DiagnosticError(
+            code="pyhcl2::evaluator::function_call::unsupported_function",
+            message=f"Intrinsic function `{call.ident.name}` does not exist",
+            labels=[LabeledSpan(call.ident.span, "unsupported function")],
         )
 
-        if iterator is None:
-            raise TypeError(f"Type of {collection} is not iterable")
+    def _eval_conditional(self, expr: Conditional, scope: EvaluationScope) -> Value:
+        condition = self.eval(expr.cond, scope)
+
+        match condition:
+            case Unknown() as condition:
+                return Unknown.indirect(
+                    condition,
+                    self.eval(expr.then_expr, scope),
+                    self.eval(expr.else_expr, scope),
+                )
+            case Boolean(True):
+                return self.eval(expr.then_expr, scope)
+            case Boolean(False):
+                return self.eval(expr.else_expr, scope)
+            case _:
+                raise DiagnosticError(
+                    code="pyhcl2::evaluator::conditional::unsupported_condition",
+                    message=f"Unsupported condition type {condition.type_name}",
+                    labels=[LabeledSpan(expr.cond.span, condition.type_name)],
+                )
+
+    def _eval_for_tuple_expression(
+        self, expr: ForTupleExpression, scope: EvaluationScope
+    ) -> Value:
+        collection = self.eval(expr.collection, scope)
+        results: list[Value] = []
+
+        iterator: Iterable[tuple[Value, Value]]
+
+        match collection:
+            case Object(obj):
+                iterator = obj.items()
+            case Array(array):
+                iterator = [(Integer(k), v) for k, v in enumerate(array)]
+            case Unknown() as collection:
+                unknown = collection.indirect()
+                iterator = [(unknown, unknown)]
+            case _:
+                raise DiagnosticError(
+                    code="pyhcl2::evaluator::for_tuple_expression::unsupported_collection",
+                    message=f"Unsupported collection type {collection.type_name}",
+                    labels=[LabeledSpan(expr.collection.span, collection.type_name)],
+                )
 
         for k, v in iterator:
-            child_ctx = scope.child()
-            child_ctx[node.value_ident.name] = v
-            if node.key_ident:
-                child_ctx[node.key_ident.name] = k
+            child_scope = scope.child()
+            child_scope[expr.value_ident.name] = v
+            if expr.key_ident:
+                child_scope[expr.key_ident.name] = k
 
             condition = (
-                self.eval(node.condition, child_ctx)
-                if node.condition is not None
-                else True
+                self.eval(expr.condition, child_scope)
+                if expr.condition is not None
+                else Boolean(True)
             )
-            # Note: We MUST NOT short-circuit evals so that we can be used as a variable tracker
-            # TODO: Implement short-circuiting ONLY if self.can_short_circuit is True
-            key = self.eval(node.key, child_ctx)
-            if not isinstance(key, str):
-                raise TypeError(f"Type of {node.key} is not string")
-            value = self.eval(node.value, child_ctx)
-            if condition is True:
-                result[key] = value
 
-        return result
+            match condition:
+                case Unknown() as condition:
+                    results.append(
+                        Unknown.indirect(condition, self.eval(expr.value, child_scope))
+                    )
+                case Boolean(True):
+                    result = self.eval(expr.value, child_scope)
+                    match result:
+                        case Unknown() as result:
+                            results.append(result.indirect())
+                        case _:
+                            results.append(result)
+                case Boolean(False):
+                    pass
+                case _:
+                    assert expr.condition is not None
+                    raise DiagnosticError(
+                        code="pyhcl2::evaluator::for_tuple_expression::unsupported_condition",
+                        message=f"Unsupported condition type {condition.type_name}",
+                        labels=[LabeledSpan(expr.condition.span, condition.type_name)],
+                    )
 
-    def _eval_attr_splat(self, node: AttrSplat, scope: EvaluationScope) -> Value:
-        on = self.eval(node.on, scope)
+        return Array(results)
 
-        if on is None:
-            return []
+    def _eval_for_object_expression(  # noqa: PLR0912
+        self, expr: ForObjectExpression, scope: EvaluationScope
+    ) -> Value:
+        if expr.grouping_mode:
+            raise DiagnosticError(
+                code="pyhcl2::evaluator::for_object_expression::unsupported_grouping_mode",
+                message="Grouping mode is not supported",
+                labels=[LabeledSpan(expr.span, "grouping mode")],
+            )
 
-        if not isinstance(on, Sequence) or isinstance(on, str):
-            on = [on]
+        collection = self.eval(expr.collection, scope)
+        results: dict[String, Value] = {}
+        unknown_blockers = []
+
+        iterator: Iterable[tuple[Value, Value]]
+
+        match collection:
+            case Object(obj):
+                iterator = obj.items()
+            case Array(array):
+                iterator = [(Integer(k), v) for k, v in enumerate(array)]
+            case Unknown() as collection:
+                unknown = collection.indirect()
+                iterator = [(unknown, unknown)]
+            case _:
+                raise DiagnosticError(
+                    code="pyhcl2::evaluator::for_object_expression::unsupported_collection",
+                    message=f"Unsupported collection type {collection.type_name}",
+                    labels=[LabeledSpan(expr.collection.span, collection.type_name)],
+                )
+
+        for k, v in iterator:
+            child_scope = scope.child()
+            child_scope[expr.value_ident.name] = v
+            if expr.key_ident:
+                child_scope[expr.key_ident.name] = k
+
+            condition = (
+                self.eval(expr.condition, child_scope)
+                if expr.condition is not None
+                else Boolean(True)
+            )
+
+            match condition:
+                case Unknown() as condition:
+                    unknown_blockers.append(
+                        Unknown.indirect(
+                            condition,
+                            self.eval(expr.key, child_scope),
+                            self.eval(expr.value, child_scope),
+                        )
+                    )
+                case Boolean(True):
+                    key = self.eval(expr.key, child_scope)
+                    match key:
+                        case Unknown() as key:
+                            unknown_blockers.append(
+                                Unknown.indirect(
+                                    key, self.eval(expr.value, child_scope)
+                                )
+                            )
+                        case String() as key:
+                            results[key] = self.eval(expr.value, child_scope)
+                        case _:
+                            raise DiagnosticError(
+                                code="pyhcl2::evaluator::for_object_expression::unsupported_key",
+                                message=f"Unsupported key type {key.type_name}",
+                                labels=[LabeledSpan(expr.key.span, key.type_name)],
+                            )
+                case Boolean(False):
+                    pass
+                case _:
+                    assert expr.condition is not None
+                    raise DiagnosticError(
+                        code="pyhcl2::evaluator::for_object_expression::unsupported_condition",
+                        message=f"Unsupported condition type {condition.type_name}",
+                        labels=[LabeledSpan(expr.condition.span, condition.type_name)],
+                    )
+
+        if unknown_blockers:
+            return Unknown.indirect(*unknown_blockers)
+
+        return Object(results)
+
+    def _eval_attr_splat(self, expr: AttrSplat, scope: EvaluationScope) -> Value:
+        on = self.eval(expr.on, scope)
+
+        match on:
+            case Null():
+                return Array([])
+            case Array(array):
+                iterable = array
+            case _:
+                iterable = [on]
 
         values = []
 
-        for v in on:
-            value = v
-            for key in node.keys:
-                value = self._evaluate_get_attr(value, key, scope)
-            values.append(value)
+        for i, v in enumerate(iterable):
+            try:
+                span = expr.on.span
+                value = v
+                for key in expr.keys:
+                    value = self._evaluate_get_attr(value, span, key, scope)
+                    span = SourceSpan(span.start, key.span.end)
+                values.append(value)
+            except DiagnosticError as e:
+                e.notes.append(
+                    Inline(
+                        "[blue]help:[/blue] The resulting expression was ",
+                        v,
+                        *expr.keys,
+                    )
+                )
+                raise e.with_context(f"while evaluating element {i}").with_context(
+                    "while evaluating attribute splat expression"
+                )
+        if isinstance(on, Unknown):
+            return Unknown.indirect(*values)
 
-        return values
+        return Array(values)
 
-    def _eval_index_splat(self, node: IndexSplat, scope: EvaluationScope) -> Value:
-        on = self.eval(node.on, scope)
+    def _eval_index_splat(self, expr: IndexSplat, scope: EvaluationScope) -> Value:
+        on = self.eval(expr.on, scope)
 
-        if on is None:
-            return []
-
-        if not isinstance(on, Sequence) or isinstance(on, str):
-            on = [on]
+        match on:
+            case Null():
+                return Array([])
+            case Array(array):
+                iterable = array
+            case _:
+                iterable = [on]
 
         values = []
 
-        for v in on:
-            value = v
-            for key in node.keys:
-                match key:
-                    case GetAttrKey(_):
-                        value = self._evaluate_get_attr(value, key, scope)
-                    case GetIndexKey(_):
-                        value = self._evaluate_get_index(value, key, scope)
-            values.append(value)
+        for i, v in enumerate(iterable):
+            try:
+                span = expr.on.span
+                value = v
+                for key in expr.keys:
+                    match key:
+                        case GetAttrKey():
+                            value = self._evaluate_get_attr(value, span, key, scope)
+                        case GetIndexKey():
+                            value = self._evaluate_get_index(value, span, key, scope)
+                    span = SourceSpan(span.start, key.span.end)
+                values.append(value)
+            except DiagnosticError as e:
+                e.notes.append(
+                    Inline(
+                        "[blue]help:[/blue] The resulting expression was ",
+                        v,
+                        *expr.keys,
+                    )
+                )
+                raise e.with_context(f"while evaluating element {i}").with_context(
+                    "while evaluating index splat expression"
+                )
 
-        return values
+        if isinstance(on, Unknown):
+            return Unknown.indirect(*values)
+
+        return Array(values)
