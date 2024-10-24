@@ -21,6 +21,7 @@ from pyagnostics.exceptions import DiagnosticError
 from pyagnostics.spans import LabeledSpan, SourceSpan
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult
 from rich.segment import Segment
+from rich.text import Span
 
 import pyhcl2.nodes
 from pyhcl2.rich_utils import (
@@ -38,6 +39,9 @@ class Value(ConsoleRenderable):
 
     def with_span(self, span: SourceSpan | None) -> Self:
         return dataclasses.replace(self, span=span)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        return []
 
     @staticmethod
     def infer(raw: object) -> Value:
@@ -96,6 +100,10 @@ class Null(Value):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment("null", style=STYLE_KEYWORDS)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        if self.span is not None:
+            yield self.span.styled(STYLE_KEYWORDS)
 
 
 @dataclass(eq=True, frozen=True)
@@ -203,6 +211,10 @@ class Integer(Value):
     ) -> RenderResult:
         yield Segment(str(self._raw), style=STYLE_NUMBER)
 
+    def rich_highlights(self) -> Iterable[Span]:
+        if self.span is not None:
+            yield self.span.styled(STYLE_NUMBER)
+
 
 @dataclass(eq=True, frozen=True)
 class String(Value):
@@ -236,6 +248,10 @@ class String(Value):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(repr(self._raw), style=STYLE_STRING)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        if self.span is not None:
+            yield self.span.styled(STYLE_STRING)
 
 
 @dataclass(eq=True, frozen=True)
@@ -343,6 +359,10 @@ class Float(Value):
     ) -> RenderResult:
         yield Segment(str(self._raw), style=STYLE_NUMBER)
 
+    def rich_highlights(self) -> Iterable[Span]:
+        if self.span is not None:
+            yield self.span.styled(STYLE_NUMBER)
+
 
 @dataclass(eq=True, frozen=True)
 class Boolean(Value):
@@ -379,6 +399,10 @@ class Boolean(Value):
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         yield Segment(str(self._raw).lower(), style=STYLE_KEYWORDS)
+
+    def rich_highlights(self) -> Iterable[Span]:
+        if self.span is not None:
+            yield self.span.styled(STYLE_KEYWORDS)
 
 
 @dataclass(eq=True, frozen=True)
@@ -593,4 +617,5 @@ class Unknown(Value):
         return Unknown(
             {VariableReference((identifier.name,), identifier.span)},
             set(),
+            span=identifier.span,
         )
