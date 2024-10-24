@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0](https://github.com/risqcapital/pyhcl2/compare/v0.2.1...v1.0.0) (2024-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Migrate to Value class types instead of primative types for results ([#40](https://github.com/risqcapital/pyhcl2/issues/40))
+* Add `start_pos` and `end_pos` to AST Nodes, tweak grammar and simplify test harness ([#37](https://github.com/risqcapital/pyhcl2/issues/37))
+
+### Features
+
+* Add `start_pos` and `end_pos` to AST Nodes, tweak grammar and simplify test harness ([#37](https://github.com/risqcapital/pyhcl2/issues/37)) ([5b769b1](https://github.com/risqcapital/pyhcl2/commit/5b769b141e49c2076f400c01e5bf320e563bfc24))
+* Migrate to Value class types instead of primative types for results ([#40](https://github.com/risqcapital/pyhcl2/issues/40)) ([dff6ff5](https://github.com/risqcapital/pyhcl2/commit/dff6ff5d444aef08596ceedc8b1a0fd664a9e0f7))
+* Support syntax highlighting ([#45](https://github.com/risqcapital/pyhcl2/issues/45)) ([6e821e6](https://github.com/risqcapital/pyhcl2/commit/6e821e6de0de8f66c946232b86c50367791deadd))
+
 ## [0.2.1](https://github.com/risqcapital/pyhcl2/compare/v0.2.0...v0.2.1) (2024-07-04)
 
 
