@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import networkx as nx  # type: ignore
 
-from pyhcl2 import Block, Module
+from pyhcl2.nodes import Block, Module
 from pyhcl2.tracker import resolve_variable_references
 
 

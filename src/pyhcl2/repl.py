@@ -1,18 +1,43 @@
+from pathlib import Path
+
+import rich
+from prompt_toolkit import PromptSession  # type: ignore
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # type: ignore
+from prompt_toolkit.history import FileHistory  # type: ignore
+from pyagnostics.exceptions import DiagnosticError
+from rich.console import NewLine
+
 from pyhcl2.eval import EvaluationScope, Evaluator
-from pyhcl2.parse import parse_expr_or_attribute
+from pyhcl2.parse import parse_expr_or_stmt
+from pyhcl2.rich_utils import Inline
+
+
+def main() -> None:
+    scope = EvaluationScope()
+    evaluator = Evaluator(intrinsic_functions={"identity": lambda x: x})
+    session: PromptSession = PromptSession(
+        history=FileHistory(Path.home() / ".pyhcl2_history")
+    )
+    try:
+        while True:
+            text = session.prompt("> ", auto_suggest=AutoSuggestFromHistory())
+
+            if text == "":
+                continue
+
+            if text == "exit":
+                break
+
+            try:
+                ast = parse_expr_or_stmt(text)
+                result = evaluator.eval(ast, scope)
+                rich.print(Inline(result.resolve().raise_on_unknown(), NewLine()))
+            except DiagnosticError as diagnostic:
+                rich.print(diagnostic.with_source_code(text))
+
+    except KeyboardInterrupt:
+        pass
+
 
 if __name__ == "__main__":
-    scope = EvaluationScope()
-    while True:
-        text = input("> ")
-
-        if text == "exit":
-            break
-
-        try:
-            ast = parse_expr_or_attribute(text)
-            result = Evaluator().eval(ast, scope)
-            if result is not None:
-                print(result)
-        except Exception as e:
-            print(e)
+    main()
