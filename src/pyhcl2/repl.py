@@ -1,9 +1,6 @@
 from pathlib import Path
 
 import rich
-from prompt_toolkit import PromptSession  # type: ignore
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # type: ignore
-from prompt_toolkit.history import FileHistory  # type: ignore
 from pyagnostics.exceptions import DiagnosticError
 from pyagnostics.source import InMemorySource, attach_diagnostic_source_code
 from rich.console import NewLine
@@ -14,6 +11,10 @@ from pyhcl2.rich_utils import HclHighlighter, Inline
 
 
 def main() -> None:
+    from prompt_toolkit import PromptSession  # type: ignore
+    from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # type: ignore
+    from prompt_toolkit.history import FileHistory  # type: ignore
+
     scope = EvaluationScope()
     evaluator = Evaluator(intrinsic_functions={"identity": lambda x: x})
     session: PromptSession = PromptSession(
