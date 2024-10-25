@@ -569,7 +569,6 @@ class Unknown(Value):
                 yield Segment(", ")
         yield Segment(">")
 
-    @staticmethod
     def indirect(*values: Value) -> Unknown:
         resolved_values = [value.resolve() for value in values]
 
