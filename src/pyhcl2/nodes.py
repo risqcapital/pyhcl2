@@ -487,6 +487,13 @@ class Block(Stmt):
     body: list[Stmt]
 
     @property
+    def key_span(self) -> SourceSpan:
+        return SourceSpan(
+            self.type.span.start,
+            self.labels[-1].span.end if self.labels else self.type.span.end,
+        )
+
+    @property
     def keys(self) -> tuple[String, ...]:
         key_parts: list[String] = [self.type.as_string()]
         for label in self.labels:
