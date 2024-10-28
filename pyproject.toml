@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "pyhcl2"
-version = "1.1.0"
+version = "1.1.1"
 description = ""
 authors = ["RISQ Capital <dev@risqcapital.com>"]
 license = "MIT"
