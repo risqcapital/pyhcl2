@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/risqcapital/pyhcl2/compare/v1.0.0...v1.1.0) (2024-10-28)
+
+
+### Features
+
+* Add key_span [@property](https://github.com/property) to Block ([#51](https://github.com/risqcapital/pyhcl2/issues/51)) ([970cf39](https://github.com/risqcapital/pyhcl2/commit/970cf393dec911f254da48663162f49b181e5b15))
+
+
+### Bug Fixes
+
+* **deps:** bump pyagnostics from 2.0.0 to 2.0.1 ([#52](https://github.com/risqcapital/pyhcl2/issues/52)) ([9400598](https://github.com/risqcapital/pyhcl2/commit/94005987a9984319db99b11b728e09047aa8331d))
+* Unknown::indirect should not be [@staticmethod](https://github.com/staticmethod) ([#48](https://github.com/risqcapital/pyhcl2/issues/48)) ([a204e18](https://github.com/risqcapital/pyhcl2/commit/a204e1890d982b2199cef7967e901d5f8187c714))
+
 ## [1.0.0](https://github.com/risqcapital/pyhcl2/compare/v0.2.1...v1.0.0) (2024-10-24)
 
 
