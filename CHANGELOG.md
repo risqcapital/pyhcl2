@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/risqcapital/pyhcl2/compare/v1.1.0...v1.1.1) (2024-10-28)
+
+
+### Bug Fixes
+
+* Add  op for null, array, object ([#53](https://github.com/risqcapital/pyhcl2/issues/53)) ([ff304de](https://github.com/risqcapital/pyhcl2/commit/ff304ded5979307f4328939e249c485aef186052))
+
 ## [1.1.0](https://github.com/risqcapital/pyhcl2/compare/v1.0.0...v1.1.0) (2024-10-28)
 
 
