@@ -93,6 +93,9 @@ class Value(ConsoleRenderable):
 
 @dataclass(eq=True, frozen=True)
 class Null(Value):
+    def __equals__(self, other: Value) -> Boolean:
+        return Boolean(isinstance(other, Null))
+
     def raw(self) -> None:
         return None
 
@@ -409,6 +412,13 @@ class Boolean(Value):
 class Array(Value, MutableSequence[Value]):
     _raw: list[Value]
 
+    def __equals__(self, other: Value) -> Boolean:
+        match other:
+            case Array() as other:
+                return Boolean(self._raw == other._raw)
+            case _:
+                return Boolean(False)
+
     def insert(self, index: int, value: Value) -> None:
         self._raw.insert(index, value)
 
@@ -470,6 +480,13 @@ class Array(Value, MutableSequence[Value]):
 @dataclass(eq=True, frozen=True)
 class Object(Value, MutableMapping[String, Value]):
     _raw: dict[String, Value]
+
+    def __equals__(self, other: Value) -> Boolean:
+        match other:
+            case Object() as other:
+                return Boolean(self._raw == other._raw)
+            case _:
+                return Boolean(False)
 
     def __setitem__(self, key: String, value: Value) -> None:
         self._raw[key] = value
