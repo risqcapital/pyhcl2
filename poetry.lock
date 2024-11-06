@@ -209,13 +209,13 @@ wcwidth = "*"
 
 [[package]]
 name = "pyagnostics"
-version = "2.0.1"
+version = "2.0.2"
 description = ""
 optional = false
 python-versions = "<4,>=3.11"
 files = [
-    {file = "pyagnostics-2.0.1-py3-none-any.whl", hash = "sha256:a6e123d50bf60c6b6a6385fcf6093ba750fc5fd9c94ee226d8889f7998d47053"},
-    {file = "pyagnostics-2.0.1.tar.gz", hash = "sha256:392af2f703e810a62ba89351ebeb532978331c998cc2ca40ef95c71d57beb083"},
+    {file = "pyagnostics-2.0.2-py3-none-any.whl", hash = "sha256:7706b50d51ade69e30223bd64bffc11173f7755772c678e4c71cc308189adaa7"},
+    {file = "pyagnostics-2.0.2.tar.gz", hash = "sha256:6534a80625b20599c4ba03034c258a953d2669693d6450f6906d44a68090167e"},
 ]
 
 [package.dependencies]
