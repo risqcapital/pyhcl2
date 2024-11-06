@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2](https://github.com/risqcapital/pyhcl2/compare/v1.1.1...v1.1.2) (2024-11-06)
+
+
+### Bug Fixes
+
+* **deps:** bump pyagnostics from 2.0.1 to 2.0.2 ([#57](https://github.com/risqcapital/pyhcl2/issues/57)) ([b78beb1](https://github.com/risqcapital/pyhcl2/commit/b78beb16b70e7a605d15ecd217d797e2a7c7fe6f))
+* **deps:** bump rich from 13.9.3 to 13.9.4 ([#55](https://github.com/risqcapital/pyhcl2/issues/55)) ([372fc25](https://github.com/risqcapital/pyhcl2/commit/372fc2519c8e20bfc2ed96381319dfd2e80faeb9))
+
 ## [1.1.1](https://github.com/risqcapital/pyhcl2/compare/v1.1.0...v1.1.1) (2024-10-28)
 
 
