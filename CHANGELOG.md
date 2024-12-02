@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/risqcapital/pyhcl2/compare/v1.1.2...v1.2.0) (2024-12-02)
+
+
+### Features
+
+* Allow `::` in idents ([#67](https://github.com/risqcapital/pyhcl2/issues/67)) ([9ee4d01](https://github.com/risqcapital/pyhcl2/commit/9ee4d017acec8958edddb4666abef05ab2aaec73))
+
 ## [1.1.2](https://github.com/risqcapital/pyhcl2/compare/v1.1.1...v1.1.2) (2024-11-06)
 
 
