@@ -46,6 +46,12 @@ def test_parse_literal_string() -> None:
     )
 
 
+def test_parse_literal_heredoc() -> None:
+    expr = parse_expr("<<EOF\nhello\nEOF")
+    assert isinstance(expr, Literal)
+    assert expr.value.raw() == "hello"
+
+
 def test_parse_literal_bool() -> None:
     assert parse_expr("true") == Literal(Boolean(True), span=SourceSpan(0, 4))
     assert parse_expr("false") == Literal(Boolean(False), span=SourceSpan(0, 5))

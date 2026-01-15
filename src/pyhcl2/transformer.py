@@ -342,7 +342,7 @@ class ToAstTransformer(Transformer):
         if not match:
             raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
         return Literal(
-            String(f'"{match.group(2)}"'),
+            String(match.group(2)),
             span=SourceSpan(meta.start_pos, meta.end_pos),
         )
 
@@ -365,6 +365,6 @@ class ToAstTransformer(Transformer):
         lines = [line[min_spaces:] for line in lines]
 
         return Literal(
-            String('"' + "\n".join(lines) + '"'),
+            String("\n".join(lines)),
             span=SourceSpan(meta.start_pos, meta.end_pos),
         )
