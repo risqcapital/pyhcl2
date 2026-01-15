@@ -27,11 +27,14 @@ def load_model_from_block(
     scope = scope or EvaluationScope()
     block_value: Object = cast(Object, evaluator.eval(block, scope))
     field_values: dict[str, Any] = {}
+    field_context: dict[str, Value] = {}
 
     for k, v in block_value.items():
         name = k.raw()
         if name in model_cls.model_fields:
             field = model_cls.model_fields[name]
+
+            field_context[name] = v
             if field.annotation is not None and (
                 field.annotation is type(v) or field.annotation is Value
             ):
@@ -40,7 +43,7 @@ def load_model_from_block(
                 field_values[name] = v.raw()
 
     try:
-        return model_cls.model_validate(field_values)
+        return model_cls.model_validate(field_values, context=field_context)
     except ValidationError as e:
         diagnostics: list[DiagnosticError] = []
         for error in e.errors():
