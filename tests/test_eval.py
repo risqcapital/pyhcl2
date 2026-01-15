@@ -6,7 +6,7 @@ from pyagnostics.exceptions import DiagnosticError
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.nodes import Attribute, Block, Identifier
 from pyhcl2.parse import parse_expr, parse_expr_or_stmt
-from pyhcl2.values import Integer, Value
+from pyhcl2.values import Integer, Unknown, Value, VariableReference
 
 
 def eval_hcl(expr: str, **kwargs: object) -> object:
@@ -18,6 +18,40 @@ def eval_hcl(expr: str, **kwargs: object) -> object:
         )
         .raw()
     )
+
+
+def eval_unknown(expr: str) -> Unknown:
+    value = Evaluator().eval(parse_expr(expr))
+    assert isinstance(value, Unknown)
+    return value
+
+
+def ref_keys(refs: set[VariableReference]) -> set[tuple[str | None, ...]]:
+    return {ref.key for ref in refs}
+
+
+def eval_value(expr: str) -> Value:
+    return Evaluator().eval(parse_expr(expr))
+
+
+def eval_stmt_value(stmt: str) -> Value:
+    return Evaluator().eval(parse_expr_or_stmt(stmt))
+
+
+def resolve_unknown(value: Value) -> Unknown:
+    resolved = value.resolve()
+    assert isinstance(resolved, Unknown)
+    return resolved
+
+
+def assert_unknown_refs(
+    unknown: Unknown,
+    *,
+    direct: set[tuple[str | None, ...]],
+    indirect: set[tuple[str | None, ...]],
+) -> None:
+    assert ref_keys(unknown.direct_references) == direct
+    assert ref_keys(unknown.indirect_references) == indirect
 
 
 def test_eval_literal_null() -> None:
@@ -56,6 +90,110 @@ def test_eval_identifier_parent_scope() -> None:
         )
         .raw()
         == 42
+    )
+
+
+def test_unknown_direct_identifier() -> None:
+    unknown = eval_unknown("foo")
+    assert_unknown_refs(unknown, direct={("foo",)}, indirect=set())
+
+
+def test_unknown_direct_attribute() -> None:
+    unknown = eval_unknown("foo.bar")
+    assert_unknown_refs(unknown, direct={("foo", "bar")}, indirect={("foo",)})
+
+
+def test_unknown_direct_index_string() -> None:
+    unknown = eval_unknown('foo["bar"]')
+    assert_unknown_refs(unknown, direct={("foo", "bar")}, indirect={("foo",)})
+
+
+def test_unknown_direct_parenthesis() -> None:
+    unknown = eval_unknown("(foo)")
+    assert_unknown_refs(unknown, direct={("foo",)}, indirect=set())
+
+
+def test_unknown_attribute_statement() -> None:
+    unknown = eval_stmt_value("a = foo")
+    assert isinstance(unknown, Unknown)
+    assert_unknown_refs(unknown, direct={("foo",)}, indirect=set())
+
+
+def test_unknown_indirect_binary() -> None:
+    unknown = eval_unknown("foo + 1")
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_indirect_conditional() -> None:
+    unknown = eval_unknown("cond ? 1 : 2")
+    assert_unknown_refs(unknown, direct=set(), indirect={("cond",)})
+
+
+def test_unknown_indirect_multiple_sources() -> None:
+    unknown = eval_unknown("foo.bar + baz")
+    assert_unknown_refs(
+        unknown,
+        direct=set(),
+        indirect={("foo",), ("foo", "bar"), ("baz",)},
+    )
+
+
+def test_unknown_indirect_object_key() -> None:
+    unknown = eval_unknown("{ (foo) = 1 }")
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_array_resolve() -> None:
+    value = eval_value("[foo]")
+    unknown = resolve_unknown(value)
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_object_value_resolve() -> None:
+    value = eval_value("{ a = foo }")
+    unknown = resolve_unknown(value)
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_index_integer() -> None:
+    unknown = eval_unknown("foo[0]")
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_function_call() -> None:
+    evaluator = Evaluator(intrinsic_functions={"id": lambda x: x})
+    value = evaluator.eval(parse_expr("id(foo)"))
+    assert isinstance(value, Unknown)
+    assert_unknown_refs(value, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_for_tuple_expression() -> None:
+    value = eval_value("[for a in foo: a]")
+    unknown = resolve_unknown(value)
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_for_object_expression() -> None:
+    value = eval_value("{ for a in foo: a => a }")
+    unknown = resolve_unknown(value)
+    assert_unknown_refs(unknown, direct=set(), indirect={("foo",)})
+
+
+def test_unknown_attr_splat() -> None:
+    unknown = eval_unknown("foo.*.bar")
+    assert_unknown_refs(
+        unknown,
+        direct=set(),
+        indirect={("foo",), ("foo", "bar")},
+    )
+
+
+def test_unknown_index_splat() -> None:
+    unknown = eval_unknown("foo[*].bar")
+    assert_unknown_refs(
+        unknown,
+        direct=set(),
+        indirect={("foo",), ("foo", "bar")},
     )
 
 
