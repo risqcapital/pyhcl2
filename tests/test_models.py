@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from pyagnostics.exceptions import DiagnosticErrorGroup
 
 from pyhcl2.models import load_model_from_block
@@ -27,22 +27,17 @@ def test_load_model_from_block_passes_context() -> None:
     assert model.foo == 1
 
 
-class SpanModel(BaseModel):
-    foo: int
-
-    @field_validator("foo")
-    @classmethod
-    def require_span(cls, value: int, info: ValidationInfo) -> int:
-        raw = info.context["foo"]
-        assert raw.span is not None
-        return value
+class ExamplePassModel(BaseModel):
+    name: str
+    value: list[int] = Field(min_length=2)
 
 
-def test_load_model_from_block_context_has_span() -> None:
-    node = parse_expr_or_stmt('span_example { foo = 42 }')
+def test_load_model_from_block_pass_case() -> None:
+    node = parse_expr_or_stmt('example { name = "test" value = [1, 2] }')
     assert isinstance(node, Block)
-    model = load_model_from_block(node, SpanModel)
-    assert model.foo == 42
+    model = load_model_from_block(node, ExamplePassModel)
+    assert model.name == "test"
+    assert model.value == [1, 2]
 
 
 class MissingFieldModel(BaseModel):

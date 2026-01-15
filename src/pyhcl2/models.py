@@ -98,21 +98,3 @@ def load_model_from_block(
 
         raise DiagnosticErrorGroup("Failed to validate hcl model", diagnostics)
 
-
-if __name__ == "__main__":
-    from pydantic import BaseModel, Field
-
-    class TestModel(BaseModel):
-        name: str
-        value: list[int] = Field(min_length=2)
-
-    hcl = """test {name = "test" value = [1]}"""
-
-    try:
-        ast = parse_expr_or_stmt(hcl)
-        assert isinstance(ast, Block)
-        rich.print(load_model_from_block(ast, TestModel))
-    except DiagnosticError as e:
-        rich.print(e.with_source_code(InMemorySource(hcl)))
-    except DiagnosticErrorGroup as e:
-        rich.print(e.with_source_code(InMemorySource(hcl)))
