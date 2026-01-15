@@ -18,7 +18,6 @@ from pyhcl2.values import Array, Object, String, Value
 Model = TypeVar("Model", bound=BaseModel)
 
 
-# ruff: noqa: PLR0912
 def load_model_from_block(
     block: Block,
     model_cls: type[Model],
@@ -80,7 +79,7 @@ def load_model_from_block(
                 case _:
                     diagnostics.append(
                         DiagnosticError(
-                            code=f"pyhcl2::pydantic_validation_error::{error["type"]}",
+                            code=f"pyhcl2::pydantic_validation_error::{error['type']}",
                             message=error["msg"],
                             labels=[
                                 LabeledSpan(value.span, "invalid input"),
