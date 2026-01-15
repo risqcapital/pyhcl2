@@ -549,7 +549,7 @@ class Unknown(Value):
             labels=[
                 LabeledSpan(
                     ref.span,
-                    f"{ref.key[-1]} could not be resolved ({".".join([k if k else "?" for k in ref.key])})",
+                    f"{ref.key[-1]} could not be resolved ({'.'.join([k if k else '?' for k in ref.key])})",
                 )
                 for ref in self.references
             ],

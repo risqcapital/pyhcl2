@@ -365,6 +365,6 @@ class ToAstTransformer(Transformer):
         lines = [line[min_spaces:] for line in lines]
 
         return Literal(
-            String(f'"{"\n".join(lines)}"'),
+            String('"' + "\n".join(lines) + '"'),
             span=SourceSpan(meta.start_pos, meta.end_pos),
         )

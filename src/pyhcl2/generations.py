@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import networkx as nx  # type: ignore
+from networkx import DiGraph
 
 from pyhcl2.nodes import Block, Module
 from pyhcl2.tracker import resolve_variable_references
@@ -19,7 +20,7 @@ def get_blocks_by_generation(
 def _topological_generations(blocks: list[Block]) -> list[list[Block]]:
     blocks_by_key = {block.key(): block for block in blocks}
 
-    graph = nx.DiGraph()
+    graph: DiGraph = nx.DiGraph()
 
     for key, block_under_test in blocks_by_key.items():
         graph.add_node(key)
