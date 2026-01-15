@@ -49,14 +49,14 @@ class Value(ConsoleRenderable):
         match raw:
             case None:
                 value = Null()
+            case bool() as raw:
+                value = Boolean(raw)
             case int() as raw:
                 value = Integer(raw)
             case float() as raw:
                 value = Float(raw)
             case str() as raw:
                 value = String(raw)
-            case bool() as raw:
-                value = Boolean(raw)
             case Sequence() as raw:
                 value = Array([Value.infer(item) for item in raw])
             case Mapping() as raw:

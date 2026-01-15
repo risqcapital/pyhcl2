@@ -44,6 +44,7 @@ def test_eval_identifier() -> None:
         eval_hcl("foo")
 
     assert eval_hcl("foo", foo=42) == 42
+    assert eval_hcl("foo == true", foo=True) is True
 
 
 def test_eval_identifier_parent_scope() -> None:
