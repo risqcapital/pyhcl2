@@ -77,7 +77,8 @@ class Evaluator:
         default_factory=dict
     )
 
-    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:  # noqa: PLR0912
+    def eval(self, expr: Node, scope: EvaluationScope | None = None) -> Value:  # noqa: PLR0912
+        scope = scope or EvaluationScope()
         match expr:
             case Block() as expr:
                 result = self._eval_block(expr, scope)
@@ -441,7 +442,15 @@ class Evaluator:
                 return Unknown.indirect(*args)
 
             try:
-                return self.intrinsic_functions[call.ident.name](*args)
+                result = self.intrinsic_functions[call.ident.name](*args)
+                if result is None:
+                    raise DiagnosticError(
+                        code="pyhcl2::evaluator::function_call::invalid_value",
+                        message="Intrinsic function returned invalid value",
+                        labels=[LabeledSpan(call.ident.span, "intrinsic function")],
+                    )
+                else:
+                    return result
             except TypeError as e:
                 raise DiagnosticError(
                     code="pyhcl2::evaluator::function_call::invalid_args",

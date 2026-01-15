@@ -201,6 +201,13 @@ def test_eval_attribute() -> None:
     assert variables == {"a": Integer(1)}
 
 
+def test_eval_scope_isolated_by_default() -> None:
+    evaluator = Evaluator()
+    evaluator.eval(parse_expr_or_stmt("a = 1"))
+    with pytest.raises(DiagnosticError):
+        evaluator.eval(parse_expr("a")).raw()
+
+
 def test_eval_simple_block() -> None:
     evaluator = Evaluator()
     result = evaluator.eval(
