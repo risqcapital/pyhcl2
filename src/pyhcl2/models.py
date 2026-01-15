@@ -22,8 +22,9 @@ def load_model_from_block(
     block: Block,
     model_cls: type[Model],
     evaluator: Evaluator = Evaluator(),
-    scope: EvaluationScope = EvaluationScope(),
+    scope: EvaluationScope | None = None,
 ) -> Model:
+    scope = scope or EvaluationScope()
     block_value: Object = cast(Object, evaluator.eval(block, scope))
     field_values: dict[str, Any] = {}
 

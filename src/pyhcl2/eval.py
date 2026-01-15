@@ -77,7 +77,10 @@ class Evaluator:
         default_factory=dict
     )
 
-    def eval(self, expr: Node, scope: EvaluationScope = EvaluationScope()) -> Value:  # noqa: PLR0912
+    def eval(
+        self, expr: Node, scope: EvaluationScope | None = None
+    ) -> Value:  # noqa: PLR0912
+        scope = scope or EvaluationScope()
         match expr:
             case Block() as expr:
                 result = self._eval_block(expr, scope)
