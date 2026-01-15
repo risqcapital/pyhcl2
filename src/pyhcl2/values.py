@@ -538,7 +538,16 @@ class VariableReference:
 
 @dataclass(eq=True, frozen=True)
 class Unknown(Value):
-    # TODO: Write docs on what direct and indirect references are
+    # Direct refs are the missing variable/path we tried to read. Examples:
+    # - `var.foo` => direct: var.foo
+    # - `obj.bar` => direct: obj.bar
+    # - `obj["baz"]` => direct: obj.baz
+    # If we access attributes on an unknown, the path extends:
+    # `var.foo.bar` => direct: var.foo.bar
+    # The base unknown remains indirect (e.g., `var.foo` in the example above).
+    # Indirect refs are unknowns that only block evaluation of another value:
+    # - `var.foo + 1` => indirect: var.foo
+    # - `cond ? x : y` => indirect: cond (plus x/y if unknown)
     direct_references: set[VariableReference] = field(default_factory=set)
     indirect_references: set[VariableReference] = field(default_factory=set)
 
