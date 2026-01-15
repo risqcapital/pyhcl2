@@ -5,3 +5,5 @@
 *.egg-info/
 __pycache__/
 .dmypy.json
+logs/
+*.log
