@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from pyagnostics.exceptions import DiagnosticError, DiagnosticErrorGroup
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from pyhcl2.models import load_model_from_block
 from pyhcl2.nodes import Block
@@ -33,7 +33,7 @@ class ExamplePassModel(BaseModel):
 
 
 def test_load_model_from_block_pass_case() -> None:
-    node = parse_expr_or_stmt("example { name = \"test\" value = [1, 2] }")
+    node = parse_expr_or_stmt('example { name = "test" value = [1, 2] }')
     assert isinstance(node, Block)
     model = load_model_from_block(node, ExamplePassModel)
     assert model.name == "test"
