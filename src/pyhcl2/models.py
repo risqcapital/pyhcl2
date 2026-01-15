@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from typing import Any, TypeVar, cast
 
-import rich
 from pyagnostics.exceptions import DiagnosticError, DiagnosticErrorGroup
-from pyagnostics.source import InMemorySource
 from pyagnostics.spans import LabeledSpan
 from pydantic import BaseModel, ValidationError
 from pydantic_core import ErrorDetails
 
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.nodes import Block
-from pyhcl2.parse import parse_expr_or_stmt
 from pyhcl2.rich_utils import Inline
 from pyhcl2.values import Array, Object, String, Value
 
@@ -97,4 +94,3 @@ def load_model_from_block(
                     )
 
         raise DiagnosticErrorGroup("Failed to validate hcl model", diagnostics)
-

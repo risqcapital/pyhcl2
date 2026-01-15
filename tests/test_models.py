@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
-from pyagnostics.exceptions import DiagnosticErrorGroup
+from pyagnostics.exceptions import DiagnosticError, DiagnosticErrorGroup
 
 from pyhcl2.models import load_model_from_block
 from pyhcl2.nodes import Block
@@ -21,7 +21,7 @@ class ExampleModel(BaseModel):
 
 
 def test_load_model_from_block_passes_context() -> None:
-    node = parse_expr_or_stmt('example { foo = 1 }')
+    node = parse_expr_or_stmt("example { foo = 1 }")
     assert isinstance(node, Block)
     model = load_model_from_block(node, ExampleModel)
     assert model.foo == 1
@@ -33,7 +33,7 @@ class ExamplePassModel(BaseModel):
 
 
 def test_load_model_from_block_pass_case() -> None:
-    node = parse_expr_or_stmt('example { name = "test" value = [1, 2] }')
+    node = parse_expr_or_stmt("example { name = \"test\" value = [1, 2] }")
     assert isinstance(node, Block)
     model = load_model_from_block(node, ExamplePassModel)
     assert model.name == "test"
@@ -45,7 +45,7 @@ class MissingFieldModel(BaseModel):
 
 
 def test_load_model_from_block_missing_field_has_span() -> None:
-    node = parse_expr_or_stmt('missing_example { }')
+    node = parse_expr_or_stmt("missing_example { }")
     assert isinstance(node, Block)
     try:
         load_model_from_block(node, MissingFieldModel)
@@ -53,7 +53,10 @@ def test_load_model_from_block_missing_field_has_span() -> None:
         errors = exc.exceptions
         assert errors
         assert any(
-            diag.labels and diag.labels[0].span is not None for diag in errors
+            isinstance(diag, DiagnosticError)
+            and diag.labels
+            and diag.labels[0].span is not None
+            for diag in errors
         )
     else:
         assert False, "Expected DiagnosticErrorGroup"
