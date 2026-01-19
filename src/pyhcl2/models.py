@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from typing import Any, TypeVar, cast
 
-import rich
 from pyagnostics.exceptions import DiagnosticError, DiagnosticErrorGroup
-from pyagnostics.source import InMemorySource
 from pyagnostics.spans import LabeledSpan
 from pydantic import BaseModel, ValidationError
 from pydantic_core import ErrorDetails
 
 from pyhcl2.eval import EvaluationScope, Evaluator
 from pyhcl2.nodes import Block
-from pyhcl2.parse import parse_expr_or_stmt
 from pyhcl2.rich_utils import Inline
 from pyhcl2.values import Array, Object, String, Value
 
@@ -27,11 +24,14 @@ def load_model_from_block(
     scope = scope or EvaluationScope()
     block_value: Object = cast(Object, evaluator.eval(block, scope))
     field_values: dict[str, Any] = {}
+    field_context: dict[str, Value] = {}
 
     for k, v in block_value.items():
         name = k.raw()
         if name in model_cls.model_fields:
             field = model_cls.model_fields[name]
+
+            field_context[name] = v
             if field.annotation is not None and (
                 field.annotation is type(v) or field.annotation is Value
             ):
@@ -40,7 +40,7 @@ def load_model_from_block(
                 field_values[name] = v.raw()
 
     try:
-        return model_cls.model_validate(field_values)
+        return model_cls.model_validate(field_values, context=field_context)
     except ValidationError as e:
         diagnostics: list[DiagnosticError] = []
         for error in e.errors():
@@ -94,22 +94,3 @@ def load_model_from_block(
                     )
 
         raise DiagnosticErrorGroup("Failed to validate hcl model", diagnostics)
-
-
-if __name__ == "__main__":
-    from pydantic import BaseModel, Field
-
-    class TestModel(BaseModel):
-        name: str
-        value: list[int] = Field(min_length=2)
-
-    hcl = """test {name = "test" value = [1]}"""
-
-    try:
-        ast = parse_expr_or_stmt(hcl)
-        assert isinstance(ast, Block)
-        rich.print(load_model_from_block(ast, TestModel))
-    except DiagnosticError as e:
-        rich.print(e.with_source_code(InMemorySource(hcl)))
-    except DiagnosticErrorGroup as e:
-        rich.print(e.with_source_code(InMemorySource(hcl)))
