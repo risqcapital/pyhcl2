@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0](https://github.com/risqcapital/pyhcl2/compare/v1.2.0...v1.3.0) (2026-01-19)
+
+
+### Features
+
+* pass validation context for model fields ([#94](https://github.com/risqcapital/pyhcl2/issues/94)) ([7bd6aab](https://github.com/risqcapital/pyhcl2/commit/7bd6aab51d0a06dc3ef8a46bf3545648e2548b33))
+
+
+### Bug Fixes
+
+* avoid shared default evaluation scope ([#90](https://github.com/risqcapital/pyhcl2/issues/90)) ([a3b0970](https://github.com/risqcapital/pyhcl2/commit/a3b0970ac070d9adae6a2d3de83eacc8031eaee4))
+* **deps:** bump dependencies ([#88](https://github.com/risqcapital/pyhcl2/issues/88)) ([14198c2](https://github.com/risqcapital/pyhcl2/commit/14198c2fa92dd3c62ebdc956085d050caeb0d65c))
+* **deps:** bump pyagnostics ([#96](https://github.com/risqcapital/pyhcl2/issues/96)) ([49f435e](https://github.com/risqcapital/pyhcl2/commit/49f435ee234072e37ac6f97de2294ecc12d0dd51))
+* infer booleans before integers ([#91](https://github.com/risqcapital/pyhcl2/issues/91)) ([607ddd0](https://github.com/risqcapital/pyhcl2/commit/607ddd02847e948ca8c8ee5d7b96012d13b6d1bf))
+* parse heredoc literals without extra quotes ([#93](https://github.com/risqcapital/pyhcl2/issues/93)) ([96183f3](https://github.com/risqcapital/pyhcl2/commit/96183f3e1387fdf96e25526dcfa7ca2273dd394b))
+
 ## [1.2.0](https://github.com/risqcapital/pyhcl2/compare/v1.1.2...v1.2.0) (2024-12-02)
 
 
