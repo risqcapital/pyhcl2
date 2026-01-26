@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/risqcapital/pyhcl2/compare/v1.3.0...v2.0.0) (2026-01-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* Bump pyagnostics and add source spans ([#99](https://github.com/risqcapital/pyhcl2/issues/99))
+
+### Features
+
+* Bump pyagnostics and add source spans ([#99](https://github.com/risqcapital/pyhcl2/issues/99)) ([6913cbf](https://github.com/risqcapital/pyhcl2/commit/6913cbfbb04e703501cfcafc995f19e744a2367e))
+
 ## [1.3.0](https://github.com/risqcapital/pyhcl2/compare/v1.2.0...v1.3.0) (2026-01-19)
 
 
