@@ -225,7 +225,7 @@ class Evaluator:
                             Inline(
                                 "[blue]help:[/blue] ",
                                 "Did you mean `",
-                                Parenthesis(key_expr),
+                                Parenthesis(key_expr, span=key_expr.span),
                                 " = ",
                                 value_expr,
                                 "`?",
@@ -647,7 +647,7 @@ class Evaluator:
                 value = v
                 for key in expr.keys:
                     value = self._evaluate_get_attr(value, span, key, scope)
-                    span = SourceSpan(span.start, key.span.end)
+                    span = SourceSpan.enclose(span, key.span)
                 values.append(value)
             except DiagnosticError as e:
                 e.notes.append(
@@ -688,7 +688,7 @@ class Evaluator:
                             value = self._evaluate_get_attr(value, span, key, scope)
                         case GetIndexKey():
                             value = self._evaluate_get_index(value, span, key, scope)
-                    span = SourceSpan(span.start, key.span.end)
+                    span = SourceSpan.enclose(span, key.span)
                 values.append(value)
             except DiagnosticError as e:
                 e.notes.append(

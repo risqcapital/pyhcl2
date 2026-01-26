@@ -29,7 +29,7 @@ from pyhcl2.values import String, Value
 class Node(ConsoleRenderable):
     """Base class for HCL2 AST nodes."""
 
-    span: SourceSpan = field(default=SourceSpan(-1, -1), compare=False, hash=False)
+    span: SourceSpan = field(compare=False, hash=False)
 
     def rich_highlights(self) -> Iterable[Span]:
         return []
@@ -126,7 +126,7 @@ class FunctionCall(Expression):
 
     @property
     def args_span(self) -> SourceSpan:
-        return SourceSpan(self.ident.span.end, self.span.end)
+        return SourceSpan(self.ident.span.end, self.span.end, self.span.source_id)
 
     def __post_init__(self) -> None:
         assert all(isinstance(arg, Expression) for arg in self.args), self.args
@@ -372,27 +372,30 @@ class ForTupleExpression(Expression):
         yield Segment("]")
 
     def rich_highlights(self) -> Iterable[Span]:
-        yield SourceSpan(
+        yield Span(
             self.span.start + 1,
             self.key_ident.span.start - 1
             if self.key_ident is not None
             else self.value_ident.span.start - 1,
-        ).styled(STYLE_KEYWORDS)
+            STYLE_KEYWORDS,
+        )
 
         if self.key_ident is not None:
             yield from self.key_ident.rich_highlights()
         yield from self.value_ident.rich_highlights()
 
-        yield SourceSpan(
-            self.value_ident.span.end + 1, self.collection.span.start - 1
-        ).styled(STYLE_KEYWORDS)
+        yield Span(
+            self.value_ident.span.end + 1,
+            self.collection.span.start - 1,
+            STYLE_KEYWORDS,
+        )
 
         yield from self.collection.rich_highlights()
         yield from self.value.rich_highlights()
         if self.condition is not None:
-            yield SourceSpan(
-                self.value.span.end + 1, self.condition.span.start - 1
-            ).styled(STYLE_KEYWORDS)
+            yield Span(
+                self.value.span.end + 1, self.condition.span.start - 1, STYLE_KEYWORDS
+            )
             yield from self.condition.rich_highlights()
 
 
@@ -429,25 +432,28 @@ class ForObjectExpression(Expression):
         yield Segment("}")
 
     def rich_highlights(self) -> Iterable[Span]:
-        yield SourceSpan(
+        yield Span(
             self.span.start + 1,
             self.key_ident.span.start - 1
             if self.key_ident is not None
             else self.value_ident.span.start - 1,
-        ).styled(STYLE_KEYWORDS)
+            STYLE_KEYWORDS,
+        )
         yield from (
             self.key_ident.rich_highlights() if self.key_ident is not None else []
         )
         yield from self.value_ident.rich_highlights()
-        yield SourceSpan(
-            self.value_ident.span.end + 1, self.collection.span.start - 1
-        ).styled(STYLE_KEYWORDS)
+        yield Span(
+            self.value_ident.span.end + 1,
+            self.collection.span.start - 1,
+            STYLE_KEYWORDS,
+        )
         yield from self.collection.rich_highlights()
         yield from self.key.rich_highlights()
         if self.condition is not None:
-            yield SourceSpan(
-                self.value.span.end + 1, self.condition.span.start - 1
-            ).styled(STYLE_KEYWORDS)
+            yield Span(
+                self.value.span.end + 1, self.condition.span.start - 1, STYLE_KEYWORDS
+            )
             yield from self.condition.rich_highlights()
 
 
@@ -491,6 +497,7 @@ class Block(Stmt):
         return SourceSpan(
             self.type.span.start,
             self.labels[-1].span.end if self.labels else self.type.span.end,
+            source_id=self.type.span.source_id,
         )
 
     @property
@@ -571,7 +578,14 @@ class Module(Node):
             blocks = [
                 block
                 for block in blocks
-                if block.labels == [Literal(String(label)) for label in labels]
+                if block.labels
+                == [
+                    Literal(
+                        String(label),
+                        span=SourceSpan(0, 0, source_id=block.type.span.source_id),
+                    )
+                    for label in labels
+                ]
             ]
 
         if len(blocks) > 1:

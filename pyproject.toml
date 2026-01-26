@@ -25,7 +25,7 @@ networkx = "^3.6.1"
 pydantic = "^2.12.5"
 rich = "^14.2.0"
 prompt-toolkit = { version = ">=2.0.1,<4.0.0", optional = true }
-pyagnostics = "^2.1.0"
+pyagnostics = "^3.0.0"
 
 [tool.poetry.extras]
 repl = ["prompt-toolkit"]
@@ -36,6 +36,7 @@ ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
 mypy = "^1.10.0"
+types-networkx = "^3.6.1.20240319"
 
 [tool.poetry.scripts]
 pyhcl2 = "pyhcl2.repl:main"
