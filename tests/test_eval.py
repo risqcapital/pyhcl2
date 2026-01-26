@@ -2,18 +2,37 @@ from __future__ import annotations
 
 import pytest
 from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.spans import SourceSpan
 
 from pyhcl2.eval import EvaluationScope, Evaluator
-from pyhcl2.nodes import Attribute, Block, Identifier
-from pyhcl2.parse import parse_expr, parse_expr_or_stmt
+from pyhcl2.nodes import Attribute, Block, Expression, Identifier
 from pyhcl2.values import Integer, Unknown, Value, VariableReference
+from tests.helpers import parse_expr_or_stmt_with_id, parse_expr_with_id, span
+
+
+def ident(name: str) -> Identifier:
+    return Identifier(name, span=span(0, len(name)))
+
+
+def attr(key: Identifier, value: Expression) -> Attribute:
+    return Attribute(key, value, span=SourceSpan.enclose(key.span, value.span))
+
+
+def block(type_: Identifier, labels: list, body: list) -> Block:
+    if body:
+        end_span = body[-1].span
+    elif labels:
+        end_span = labels[-1].span
+    else:
+        end_span = type_.span
+    return Block(type_, labels, body, span=SourceSpan.enclose(type_.span, end_span))
 
 
 def eval_hcl(expr: str, **kwargs: object) -> object:
     return (
         Evaluator()
         .eval(
-            parse_expr(expr),
+            parse_expr_with_id(expr),
             EvaluationScope(variables={k: Value.infer(v) for k, v in kwargs.items()}),
         )
         .raw()
@@ -21,7 +40,7 @@ def eval_hcl(expr: str, **kwargs: object) -> object:
 
 
 def eval_unknown(expr: str) -> Unknown:
-    value = Evaluator().eval(parse_expr(expr))
+    value = Evaluator().eval(parse_expr_with_id(expr))
     assert isinstance(value, Unknown)
     return value
 
@@ -31,11 +50,11 @@ def ref_keys(refs: set[VariableReference]) -> set[tuple[str | None, ...]]:
 
 
 def eval_value(expr: str) -> Value:
-    return Evaluator().eval(parse_expr(expr))
+    return Evaluator().eval(parse_expr_with_id(expr))
 
 
 def eval_stmt_value(stmt: str) -> Value:
-    return Evaluator().eval(parse_expr_or_stmt(stmt))
+    return Evaluator().eval(parse_expr_or_stmt_with_id(stmt))
 
 
 def resolve_unknown(value: Value) -> Unknown:
@@ -85,7 +104,7 @@ def test_eval_identifier_parent_scope() -> None:
     assert (
         Evaluator()
         .eval(
-            parse_expr("foo"),
+            parse_expr_with_id("foo"),
             EvaluationScope(parent=EvaluationScope(variables={"foo": Integer(42)})),
         )
         .raw()
@@ -162,7 +181,7 @@ def test_unknown_index_integer() -> None:
 
 def test_unknown_function_call() -> None:
     evaluator = Evaluator(intrinsic_functions={"id": lambda x: x})
-    value = evaluator.eval(parse_expr("id(foo)"))
+    value = evaluator.eval(parse_expr_with_id("id(foo)"))
     assert isinstance(value, Unknown)
     assert_unknown_refs(value, direct=set(), indirect={("foo",)})
 
@@ -333,7 +352,7 @@ def test_eval_attribute() -> None:
     variables: dict[str, Value] = {}
     assert (
         evaluator.eval(
-            parse_expr_or_stmt("a = 1"), EvaluationScope(variables=variables)
+            parse_expr_or_stmt_with_id("a = 1"), EvaluationScope(variables=variables)
         ).raw()
         == 1
     )
@@ -342,19 +361,19 @@ def test_eval_attribute() -> None:
 
 def test_eval_scope_isolated_by_default() -> None:
     evaluator = Evaluator()
-    evaluator.eval(parse_expr_or_stmt("a = 1"))
+    evaluator.eval(parse_expr_or_stmt_with_id("a = 1"))
     with pytest.raises(DiagnosticError):
-        evaluator.eval(parse_expr("a")).raw()
+        evaluator.eval(parse_expr_with_id("a")).raw()
 
 
 def test_eval_simple_block() -> None:
     evaluator = Evaluator()
     result = evaluator.eval(
-        Block(
-            Identifier("test"),
+        block(
+            ident("test"),
             [],
             [
-                Attribute(Identifier("a"), parse_expr("1")),
+                attr(ident("a"), parse_expr_with_id("1")),
             ],
         )
     ).raw()
@@ -365,22 +384,22 @@ def test_eval_simple_block() -> None:
 def test_eval_nested_block() -> None:
     evaluator = Evaluator()
     result = evaluator.eval(
-        Block(
-            Identifier("test"),
+        block(
+            ident("test"),
             [],
             [
-                Block(
-                    Identifier("nested"),
+                block(
+                    ident("nested"),
                     [],
                     [
-                        Attribute(Identifier("a"), parse_expr("1")),
+                        attr(ident("a"), parse_expr_with_id("1")),
                     ],
                 ),
-                Block(
-                    Identifier("nested"),
+                block(
+                    ident("nested"),
                     [],
                     [
-                        Attribute(Identifier("a"), parse_expr("2")),
+                        attr(ident("a"), parse_expr_with_id("2")),
                     ],
                 ),
             ],

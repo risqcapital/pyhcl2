@@ -7,7 +7,7 @@ from typing import TypeVar, cast
 from lark import Discard, Token, Transformer, v_args
 from lark.tree import Meta
 from lark.visitors import _DiscardType
-from pyagnostics.spans import SourceSpan
+from pyagnostics.spans import SourceId, SourceSpan
 
 from pyhcl2.nodes import (
     ArrayExpression,
@@ -47,11 +47,21 @@ T = TypeVar("T")
 
 # noinspection PyMethodMayBeStatic
 class ToAstTransformer(Transformer):
+    def __init__(self, *, source_id: SourceId) -> None:
+        super().__init__()
+        self._source_id = source_id
+
+    def _span(self, start: int, end: int) -> SourceSpan:
+        return SourceSpan(start, end, source_id=self._source_id)
+
+    def _enclose(self, start: SourceSpan, end: SourceSpan) -> SourceSpan:
+        return SourceSpan.enclose(start, end)
+
     @v_args(inline=True)
     def __binary_op(self, op: Token) -> BinaryOperator:
         assert op.start_pos is not None
         assert op.end_pos is not None
-        return BinaryOperator(type=op.value, span=SourceSpan(op.start_pos, op.end_pos))
+        return BinaryOperator(type=op.value, span=self._span(op.start_pos, op.end_pos))
 
     add_op = __binary_op
     mul_op = __binary_op
@@ -68,7 +78,7 @@ class ToAstTransformer(Transformer):
             op,
             left,
             right,
-            span=SourceSpan(left.span.start, right.span.end),
+            span=self._enclose(left.span, right.span),
         )
 
     term = __binary_expression
@@ -82,7 +92,7 @@ class ToAstTransformer(Transformer):
     def __unary_op(self, op: Token) -> UnaryOperator:
         assert op.start_pos is not None
         assert op.end_pos is not None
-        return UnaryOperator(type=op.value, span=SourceSpan(op.start_pos, op.end_pos))
+        return UnaryOperator(type=op.value, span=self._span(op.start_pos, op.end_pos))
 
     not_op = __unary_op
     neg_op = __unary_op
@@ -91,7 +101,7 @@ class ToAstTransformer(Transformer):
     def __unary_expression(
         self, op: UnaryOperator, expr: Expression
     ) -> UnaryExpression:
-        return UnaryExpression(op, expr, span=SourceSpan(op.span.start, expr.span.end))
+        return UnaryExpression(op, expr, span=self._enclose(op.span, expr.span))
 
     not_test = __unary_expression
     neg = __unary_expression
@@ -104,32 +114,32 @@ class ToAstTransformer(Transformer):
             condition,
             then_expr,
             else_expr,
-            span=SourceSpan(condition.span.start, else_expr.span.end),
+            span=self._enclose(condition.span, else_expr.span),
         )
 
     @v_args(inline=True, meta=True)
     def get_attr(self, meta: Meta, identifier: Identifier) -> GetAttrKey:
-        return GetAttrKey(identifier, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return GetAttrKey(identifier, span=self._span(meta.start_pos, meta.end_pos))
 
     @v_args(inline=True)
     def get_attr_expr_term(self, on: Expression, key: GetAttrKey) -> GetAttr:
-        return GetAttr(on, key, span=SourceSpan(on.span.start, key.span.end))
+        return GetAttr(on, key, span=self._enclose(on.span, key.span))
 
     @v_args(meta=True)
     def float_lit(self, meta: Meta, args: list[Token]) -> Literal:
         return Literal(
             Float(float("".join([str(arg) for arg in args]))),
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True, inline=True)
     def null_lit(self, meta: Meta) -> Literal:
-        span = SourceSpan(meta.start_pos, meta.end_pos)
+        span = self._span(meta.start_pos, meta.end_pos)
         return Literal(Null(span=span), span=span)
 
     @v_args(meta=True)
     def int_lit(self, meta: Meta, args: list[Token]) -> Literal:
-        span = SourceSpan(meta.start_pos, meta.end_pos)
+        span = self._span(meta.start_pos, meta.end_pos)
         return Literal(
             Integer(int("".join([str(arg) for arg in args])), span=span),
             span=span,
@@ -143,7 +153,7 @@ class ToAstTransformer(Transformer):
     def bool_lit(self, token: Token) -> Literal:
         assert token.start_pos is not None
         assert token.end_pos is not None
-        span = SourceSpan(token.start_pos, token.end_pos)
+        span = self._span(token.start_pos, token.end_pos)
         match token.value.lower():
             case "true":
                 return Literal(
@@ -161,7 +171,7 @@ class ToAstTransformer(Transformer):
     def string_lit(self, token: Token) -> Literal:
         assert token.start_pos is not None
         assert token.end_pos is not None
-        span = SourceSpan(token.start_pos, token.end_pos)
+        span = self._span(token.start_pos, token.end_pos)
         return Literal(
             String(token.value[1:-1], span=span),
             span=span,
@@ -171,11 +181,11 @@ class ToAstTransformer(Transformer):
     def identifier(self, ident: Token) -> Expression:
         assert ident.start_pos is not None
         assert ident.end_pos is not None
-        return Identifier(ident.value, span=SourceSpan(ident.start_pos, ident.end_pos))
+        return Identifier(ident.value, span=self._span(ident.start_pos, ident.end_pos))
 
     @v_args(inline=True)
     def attribute(self, ident: Identifier, expr: Expression) -> Attribute:
-        return Attribute(ident, expr, span=SourceSpan(ident.span.start, expr.span.end))
+        return Attribute(ident, expr, span=self._enclose(ident.span, expr.span))
 
     def body(self, args: list[Stmt]) -> list[Stmt]:
         return args
@@ -189,7 +199,7 @@ class ToAstTransformer(Transformer):
             type_key,
             labels,
             body,
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True)
@@ -197,7 +207,7 @@ class ToAstTransformer(Transformer):
         self, meta: Meta, args: list[tuple[Expression, Expression]]
     ) -> ObjectExpression:
         return ObjectExpression(
-            {kv[0]: kv[1] for kv in args}, span=SourceSpan(meta.start_pos, meta.end_pos)
+            {kv[0]: kv[1] for kv in args}, span=self._span(meta.start_pos, meta.end_pos)
         )
 
     @v_args(inline=True)
@@ -208,11 +218,11 @@ class ToAstTransformer(Transformer):
 
     @v_args(meta=True)
     def array(self, meta: Meta, values: list[Expression]) -> ArrayExpression:
-        return ArrayExpression(values, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return ArrayExpression(values, span=self._span(meta.start_pos, meta.end_pos))
 
     @v_args(meta=True, inline=True)
     def paren_expr(self, meta: Meta, expr: Expression) -> Parenthesis:
-        return Parenthesis(expr, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return Parenthesis(expr, span=self._span(meta.start_pos, meta.end_pos))
 
     @v_args(meta=True, inline=True)
     def function_call(
@@ -225,7 +235,7 @@ class ToAstTransformer(Transformer):
             ident,
             args[0],
             args[1] is not None,
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )
 
     def arguments(
@@ -237,17 +247,17 @@ class ToAstTransformer(Transformer):
 
     @v_args(meta=True, inline=True)
     def ellipsis(self, meta: Meta) -> VarArgsMarker:
-        return VarArgsMarker(span=SourceSpan(meta.start_pos, meta.end_pos))
+        return VarArgsMarker(span=self._span(meta.start_pos, meta.end_pos))
 
     @v_args(meta=True, inline=True)
     def index(self, meta: Meta, expr: Expression) -> GetIndexKey:
-        return GetIndexKey(expr, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return GetIndexKey(expr, span=self._span(meta.start_pos, meta.end_pos))
 
     @v_args(meta=True, inline=True)
     def index_expr_term(
         self, meta: Meta, on: Expression, index: GetIndexKey
     ) -> GetIndex:
-        return GetIndex(on, index, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return GetIndex(on, index, span=self._span(meta.start_pos, meta.end_pos))
 
     def attr_splat(self, args: list[Node]) -> list[Node]:
         return args
@@ -256,7 +266,7 @@ class ToAstTransformer(Transformer):
     def attr_splat_expr_term(
         self, meta: Meta, on: Expression, keys: list[GetAttrKey]
     ) -> AttrSplat:
-        return AttrSplat(on, keys, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return AttrSplat(on, keys, span=self._span(meta.start_pos, meta.end_pos))
 
     def full_splat(self, args: list[Node]) -> list[Node]:
         return args
@@ -265,7 +275,7 @@ class ToAstTransformer(Transformer):
     def full_splat_expr_term(
         self, meta: Meta, on: Expression, keys: list[GetAttrKey | GetIndexKey]
     ) -> IndexSplat:
-        return IndexSplat(on, keys, span=SourceSpan(meta.start_pos, meta.end_pos))
+        return IndexSplat(on, keys, span=self._span(meta.start_pos, meta.end_pos))
 
     def new_line_or_comment(self, _args: list[Node | Token]) -> _DiscardType:
         return Discard
@@ -307,7 +317,7 @@ class ToAstTransformer(Transformer):
             collection,
             expression,
             condition,
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True, inline=True)
@@ -333,7 +343,7 @@ class ToAstTransformer(Transformer):
             value_expression,
             condition,
             grouping_mode,
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True)
@@ -343,7 +353,7 @@ class ToAstTransformer(Transformer):
             raise RuntimeError(f"Invalid Heredoc token: {args[0]}")
         return Literal(
             String(match.group(2)),
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )
 
     @v_args(meta=True)
@@ -366,5 +376,5 @@ class ToAstTransformer(Transformer):
 
         return Literal(
             String("\n".join(lines)),
-            span=SourceSpan(meta.start_pos, meta.end_pos),
+            span=self._span(meta.start_pos, meta.end_pos),
         )

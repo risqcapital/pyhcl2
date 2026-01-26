@@ -4,6 +4,7 @@ from pathlib import Path
 import rich
 from pyagnostics.exceptions import DiagnosticError
 from pyagnostics.source import InMemorySource, attach_diagnostic_source_code
+from pyagnostics.spans import SourceId
 from rich.console import NewLine
 
 from pyhcl2.eval import EvaluationScope, Evaluator
@@ -32,17 +33,17 @@ def main() -> None:
                 break
 
             src = InMemorySource(text)
+            source_id = SourceId()
             try:
-                ast = parse_expr_or_stmt(text)
+                with attach_diagnostic_source_code(src, source_id=source_id):
+                    ast = parse_expr_or_stmt(text, source_id=source_id)
                 with attach_diagnostic_source_code(
-                    src, highlighter=HclHighlighter(ast)
+                    src, highlighter=HclHighlighter(ast), source_id=source_id
                 ):
                     result = evaluator.eval(ast, scope)
                     rich.print(Inline(result.resolve().raise_on_unknown(), NewLine()))
             except DiagnosticError as diagnostic:
-                rich.get_console().print(
-                    diagnostic.with_source_code(src), highlight=False
-                )
+                rich.get_console().print(diagnostic, highlight=False)
 
     except KeyboardInterrupt:
         pass
