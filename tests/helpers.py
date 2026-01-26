@@ -5,7 +5,7 @@ from pyagnostics.spans import SourceId, SourceSpan
 from pyhcl2.nodes import Expression, Module, Stmt
 from pyhcl2.parse import parse_expr, parse_expr_or_stmt, parse_module
 
-SOURCE_ID = SourceId.from_value(1)
+SOURCE_ID = SourceId.unsafe_from_value(1)
 
 
 def span(start: int, end: int) -> SourceSpan:

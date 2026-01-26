@@ -1,7 +1,9 @@
 import textwrap
+from typing import cast
 
 import pytest
 from pyagnostics.exceptions import DiagnosticError
+from pyagnostics.source import InMemorySource
 
 from pyhcl2.nodes import (
     ArrayExpression,
@@ -28,18 +30,16 @@ from pyhcl2.nodes import (
     UnaryOperator,
 )
 from pyhcl2.parse import (
-    parse_expr,
-    parse_expr_or_stmt,
-    parse_module,
     parse_module_with_source,
 )
+from pyhcl2.values import Boolean, Float, Integer, Null, String
 from tests.helpers import (
     parse_expr_or_stmt_with_id,
     parse_expr_with_id,
     parse_module_with_id,
     span,
 )
-from pyhcl2.values import Boolean, Float, Integer, Null, String
+
 
 def test_parse_literal_null() -> None:
     assert parse_expr_with_id("null") == Literal(Null(), span=span(0, 4))
@@ -83,7 +83,7 @@ def test_parse_module_with_source_attaches_source_on_error() -> None:
     resolved = diag.get_source(source_id)
     assert resolved is not None
     source_code, _highlighter = resolved
-    assert source_code.name == "broken.hcl"
+    assert cast(InMemorySource, source_code).name == "broken.hcl"
 
 
 def test_parse_identifier() -> None:
