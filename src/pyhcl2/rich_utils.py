@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from pyagnostics.protocols import SourceCodeHighlighter, SpanContents
 from rich.color import Color
@@ -8,7 +9,8 @@ from rich.console import Group, RenderableType
 from rich.style import Style
 from rich.text import Span, Text
 
-from pyhcl2 import nodes
+if TYPE_CHECKING:
+    from pyhcl2.nodes import Node
 
 STYLE_PROPERTY_NAME = Style(color=Color.from_rgb(199, 125, 187))
 STYLE_KEYWORDS = Style(color=Color.from_rgb(207, 142, 109))
@@ -19,7 +21,7 @@ STYLE_FUNCTION = Style(color=Color.from_rgb(136, 136, 198))
 
 @dataclass
 class HclHighlighter(SourceCodeHighlighter):
-    ast: nodes.Node
+    ast: Node
 
     def highlight(self, span_contents: SpanContents) -> SpanContents:
         spans: list[Span] = [

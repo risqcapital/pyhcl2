@@ -12,6 +12,7 @@ from collections.abc import (
 from dataclasses import dataclass, field
 from os import PathLike
 from typing import (
+    TYPE_CHECKING,
     Never,
     Self,
     overload,
@@ -23,7 +24,6 @@ from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResul
 from rich.segment import Segment
 from rich.text import Span
 
-import pyhcl2.nodes
 from pyhcl2.rich_utils import (
     STYLE_KEYWORDS,
     STYLE_NUMBER,
@@ -31,6 +31,9 @@ from pyhcl2.rich_utils import (
     STYLE_STRING,
     Inline,
 )
+
+if TYPE_CHECKING:
+    from pyhcl2.nodes import Identifier
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -638,7 +641,7 @@ class Unknown(Value):
         return Unknown(direct_refs, self.references)
 
     @staticmethod
-    def ident(identifier: pyhcl2.nodes.Identifier) -> Unknown:
+    def ident(identifier: Identifier) -> Unknown:
         return Unknown(
             {VariableReference((identifier.name,), identifier.span)},
             set(),
