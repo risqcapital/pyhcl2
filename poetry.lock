@@ -420,14 +420,14 @@ wcwidth = "*"
 
 [[package]]
 name = "pyagnostics"
-version = "3.0.0"
+version = "3.0.2"
 description = ""
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "pyagnostics-3.0.0-py3-none-any.whl", hash = "sha256:df02484d760fcb2e869fab99e58d8dbe18d075c472d5fc10adcabc08e1d60e95"},
-    {file = "pyagnostics-3.0.0.tar.gz", hash = "sha256:204fe634a38e974e78aecabe7f3506ea392f0e51da47d75e313ede9ed8739383"},
+    {file = "pyagnostics-3.0.2-py3-none-any.whl", hash = "sha256:3a8166f6452d923a8d69ee2c1c8459fc3aa25d91fac837f2b78f8c2a2207a1bc"},
+    {file = "pyagnostics-3.0.2.tar.gz", hash = "sha256:48c229e73b723bb0d6b0e58c24513753facc653892841de2fe884cc7170bdae2"},
 ]
 
 [package.dependencies]
@@ -773,4 +773,4 @@ repl = ["prompt-toolkit"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">= 3.11, < 4, !=3.14.1"
-content-hash = "dd22b0555e11a893907fb7d2d7e6f8e4c707e70d857d76e597ee46e2dddf0b61"
+content-hash = "b35cbedf68f249136695acb9ea55a731a3d5bbeb7745ed2c4202b280e9d4dd02"
