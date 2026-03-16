@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1](https://github.com/risqcapital/pyhcl2/compare/v2.0.0...v2.0.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* avoid import-order circular imports ([#113](https://github.com/risqcapital/pyhcl2/issues/113)) ([369d0ed](https://github.com/risqcapital/pyhcl2/commit/369d0ed4a7eabd58d5d3d233a0f9d33f7de09d01))
+* **deps:** bump rich from 14.3.1 to 14.3.3 ([#106](https://github.com/risqcapital/pyhcl2/issues/106)) ([f3ded3e](https://github.com/risqcapital/pyhcl2/commit/f3ded3eafb4c0a7ba0b187caac58d005c4046ba9))
+
 ## [2.0.0](https://github.com/risqcapital/pyhcl2/compare/v1.3.0...v2.0.0) (2026-01-26)
 
 
