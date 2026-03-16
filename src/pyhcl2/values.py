@@ -12,9 +12,9 @@ from collections.abc import (
 from dataclasses import dataclass, field
 from os import PathLike
 from typing import (
+    TYPE_CHECKING,
     Never,
     Self,
-    TYPE_CHECKING,
     overload,
 )
 
