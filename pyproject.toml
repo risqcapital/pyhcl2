@@ -36,7 +36,7 @@ ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
 mypy = "^1.10.0"
-types-networkx = "^3.6.1.20260303"
+types-networkx = "^3.6.1.20260321"
 
 [tool.poetry.scripts]
 pyhcl2 = "pyhcl2.repl:main"
