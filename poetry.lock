@@ -702,14 +702,14 @@ files = [
 
 [[package]]
 name = "types-networkx"
-version = "3.6.1.20260303"
+version = "3.6.1.20260408"
 description = "Typing stubs for networkx"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "types_networkx-3.6.1.20260303-py3-none-any.whl", hash = "sha256:754c7c7bcaab3c317b0b86441240c0a5bd0d2f419aba80a88e9718248a5c89af"},
-    {file = "types_networkx-3.6.1.20260303.tar.gz", hash = "sha256:8248aa6fcadc08bd7992af6e412bfc5cfa043bda5ce7ab407fa591c808ce8557"},
+    {file = "types_networkx-3.6.1.20260408-py3-none-any.whl", hash = "sha256:dc957f12bc9ffe7cab6704ccb719722fc5e508a491273c49b45c8786162a6f08"},
+    {file = "types_networkx-3.6.1.20260408.tar.gz", hash = "sha256:63f94902b2d99d6d4f448eb1bc23b8a327d4022f5098bc0d22d42b13003b106e"},
 ]
 
 [package.dependencies]
@@ -773,4 +773,4 @@ repl = ["prompt-toolkit"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">= 3.11, < 4, !=3.14.1"
-content-hash = "dd22b0555e11a893907fb7d2d7e6f8e4c707e70d857d76e597ee46e2dddf0b61"
+content-hash = "5b25a205a52cad5fdc786a0b4a9b97f0c1cecc8b13da86daa0821c54e220f735"
