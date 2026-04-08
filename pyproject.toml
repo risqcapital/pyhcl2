@@ -31,7 +31,7 @@ pyagnostics = "^3.0.0"
 repl = ["prompt-toolkit"]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^9.0.2"
+pytest = "^9.0.3"
 ruff = "*"
 types-dataclasses = "^0.6.5"
 types-termcolor = "^1.1.4"
